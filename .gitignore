@@ -17,6 +17,7 @@ Saved/
 .DS_Store
 
 .vscode/
+.idea/
 
 # Visual Studio cache
 .vs/
