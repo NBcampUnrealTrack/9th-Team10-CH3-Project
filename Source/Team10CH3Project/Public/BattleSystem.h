@@ -17,7 +17,7 @@ protected:
 
 public:	
 	UFUNCTION(BlueprintCallable)
-	void Attack(AActor* targetActor, float damageAmount);
+	void Attack(AActor* targetActor, float damageAmount, AActor* attackerActor, FVector hitLocation);
 
 	UFUNCTION(BlueprintCallable)
 	void FireLineTrace(AActor* shooterActor, float attackDamageAmount, float attackRange);

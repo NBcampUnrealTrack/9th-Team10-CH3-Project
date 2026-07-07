@@ -14,13 +14,15 @@ void UHealthComponent::BeginPlay()
 	onDeath.AddDynamic(this, &UHealthComponent::HandleDeath);
 }
 
-void UHealthComponent::TakeDamage(float damageAmount)
+void UHealthComponent::TakeDamage(float damageAmount, AActor* attackerActor, FVector hitLocation)
 {
 
 	if (isDead)
 	{
 		return;
 	}
+
+	onDamaged.Broadcast(damageAmount, attackerActor, hitLocation);
 
 	currentHealth -= damageAmount;
 
@@ -36,12 +38,22 @@ void UHealthComponent::TakeDamage(float damageAmount)
 	}
 }
 
-void UHealthComponent::HandleDeath()
+FVector UHealthComponent::GetDirectionOwnerToActor(AActor* targetActor) const
 {
 	AActor* owner = GetOwner();
 
-	if (owner)
+	if (owner == nullptr || targetActor == nullptr)
 	{
-		owner->Destroy();
+		return FVector::ZeroVector;
 	}
+
+	FVector direction = targetActor->GetActorLocation() - owner->GetActorLocation();
+	direction.Normalize();
+
+	return direction;
+}
+
+void UHealthComponent::HandleDeath()
+{
+	AActor* owner = GetOwner();
 }

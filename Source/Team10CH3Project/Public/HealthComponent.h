@@ -5,6 +5,15 @@
 #include "HealthComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeath);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FOnDamaged,
+	float,
+	damageAmount,
+	AActor*,
+	attackerActor,
+	FVector,
+	hitLocation
+);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class TEAM10CH3PROJECT_API UHealthComponent : public UActorComponent
@@ -29,9 +38,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
 	bool isDead = false;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnDamaged onDamaged;
 	
 	UFUNCTION(BlueprintCallable)
-	void TakeDamage(float damageAmount);
+	void TakeDamage(float damageAmount, AActor* attackerActor, FVector hitLocation);
+
+	UFUNCTION(BlueprintCallable)
+	FVector GetDirectionOwnerToActor(AActor* targetActor) const;
 
 	UFUNCTION()
 	void HandleDeath();	
