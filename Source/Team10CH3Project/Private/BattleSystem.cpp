@@ -13,7 +13,7 @@ void ABattleSystem::BeginPlay()
 	Super::BeginPlay();
 }
 
-void ABattleSystem::Attack(AActor* targetActor, float damageAmount)
+void ABattleSystem::Attack(AActor* targetActor, float damageAmount, AActor* attackerActor, FVector hitLocation)
 {
 	if (targetActor == nullptr)
 	{
@@ -25,7 +25,7 @@ void ABattleSystem::Attack(AActor* targetActor, float damageAmount)
 
 	if (healthComponent)
 	{
-		healthComponent->TakeDamage(damageAmount);
+		healthComponent->TakeDamage(damageAmount, attackerActor, hitLocation);
 	}
 	else
 	{
@@ -74,7 +74,7 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 	{
 		AActor* hitActor = hitResult.GetActor();
 
-		Attack(hitActor, attackDamageAmount);
+		Attack(hitActor, attackDamageAmount, shooterActor, hitResult.ImpactPoint);
 	}
 }
 
@@ -116,7 +116,7 @@ void ABattleSystem::AttackAround(AActor* attackerActor, float damageAmount, floa
 			if (hitActor && !damagedActors.Contains(hitActor) && hitActor->FindComponentByClass<UHealthComponent>())
 			{
 				damagedActors.Add(hitActor);
-				Attack(hitActor, damageAmount);
+				Attack(hitActor, damageAmount, attackerActor, hitResult.ImpactPoint);
 			}
 		}
 	}
