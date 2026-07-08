@@ -105,12 +105,99 @@ void ABattleSystem::AttackAround(AActor* attackerActor, float damageAmount, floa
 	}
 }
 
+void ABattleSystem::AttackAroundLocation(
+	FVector attackLocation,
+	AActor* attackerActor,
+	float damageAmount,
+	float attackRange
+)
+{
+	if (attackerActor == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
+		return;
+	}
+
+	TArray<AActor*> ignoreActors;
+	ignoreActors.Add(attackerActor);
+
+	TArray<FHitResult> hitResults;
+	TArray<AActor*> damagedActors;
+
+	bool isHit = UKismetSystemLibrary::SphereTraceMulti(
+		GetWorld(),
+		attackLocation,
+		attackLocation,
+		attackRange,
+		UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false,
+		ignoreActors,
+		EDrawDebugTrace::None,
+		hitResults,
+		true
+	);
+
+	if (isHit)
+	{
+		for (FHitResult hitResult : hitResults)
+		{
+			AActor* hitActor = hitResult.GetActor();
+
+			if (hitActor && !damagedActors.Contains(hitActor) && hitActor->FindComponentByClass<UHealthComponent>())
+			{
+				damagedActors.Add(hitActor);
+				Attack(hitActor, damageAmount, attackerActor, hitResult.ImpactPoint);
+			}
+		}
+	}
+}
+
 void ABattleSystem::RequestBasicAttack(AActor* attackerActor)
 {
 	FireLineTrace(attackerActor, basicAttackDamage, basicAttackRange);
 }
 
+bool ABattleSystem::CanUseSkillAttack() const
+{
+	return !isSkillOnCooldown;
+}
+
+void ABattleSystem::StartSkillCooldown()
+{
+	isSkillOnCooldown = true;
+
+	GetWorldTimerManager().SetTimer(
+		skillCooldownTimerHandle,
+		this,
+		&ABattleSystem::ResetSkillCooldown,
+		skillCooldown,
+		false
+	);
+}
+
+void ABattleSystem::ResetSkillCooldown()
+{
+	isSkillOnCooldown = false;
+}
+
 void ABattleSystem::RequestSkillAttack(AActor* attackerActor)
 {
-	AttackAround(attackerActor, skillAttackDamage, skillAttackRange);
+	if (!CanUseSkillAttack())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Skill attack failed: cooldown"));
+		onSkillAttackFailed.Broadcast();
+		return;
+	}
+
+	if (attackerActor == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
+		return;
+	}
+
+	FVector skillLocation = attackerActor->GetActorLocation() + attackerActor->GetActorForwardVector() * skillThrowDistance;
+
+	AttackAroundLocation(skillLocation, attackerActor, skillAttackDamage, skillAttackRange);
+
+	StartSkillCooldown();
 }
