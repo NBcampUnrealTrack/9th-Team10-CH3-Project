@@ -1,6 +1,5 @@
 #include "BattleSystem.h"
 #include "HealthComponent.h"
-#include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 ABattleSystem::ABattleSystem()
@@ -26,10 +25,6 @@ void ABattleSystem::Attack(AActor* targetActor, float damageAmount, AActor* atta
 	if (healthComponent)
 	{
 		healthComponent->TakeDamage(damageAmount, attackerActor, hitLocation);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HealthComponent not found"));
 	}
 }
 
@@ -57,18 +52,6 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 		ECC_Visibility,
 		traceParams
 	);
-
-	if (showDebug)
-	{
-		DrawDebugLine(
-			GetWorld(),
-			startLocation,
-			endLocation,
-			FColor::Red,
-			false,
-			2.0f
-		);
-	}
 
 	if (isHit)
 	{
@@ -102,7 +85,7 @@ void ABattleSystem::AttackAround(AActor* attackerActor, float damageAmount, floa
 		UEngineTypes::ConvertToTraceType(ECC_Visibility),
 		false,
 		ignoreActors,
-		showDebug ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
+		EDrawDebugTrace::None,
 		hitResults,
 		true
 	);

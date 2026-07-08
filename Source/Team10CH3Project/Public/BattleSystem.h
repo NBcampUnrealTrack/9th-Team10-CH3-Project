@@ -42,10 +42,4 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void RequestSkillAttack(AActor* attackerActor);
-
-
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|Debug")
-	bool showDebug = true;
 };
