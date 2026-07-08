@@ -4,15 +4,17 @@
 #include "Components/ActorComponent.h"
 #include "HealthComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeath);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeath, AActor*, deadActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	FOnDamaged,
 	float,
 	damageAmount,
 	AActor*,
 	attackerActor,
 	FVector,
-	hitLocation
+	hitLocation,
+	FVector,
+	attackDirection
 );
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -44,10 +46,4 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	void TakeDamage(float damageAmount, AActor* attackerActor, FVector hitLocation);
-
-	UFUNCTION(BlueprintCallable)
-	FVector GetDirectionOwnerToActor(AActor* targetActor) const;
-
-	UFUNCTION()
-	void HandleDeath();	
 };
