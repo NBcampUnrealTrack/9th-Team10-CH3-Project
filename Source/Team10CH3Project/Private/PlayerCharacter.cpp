@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "PlayerCharacter.h"
 
 #include "EnhancedInputComponent.h"
@@ -11,63 +10,46 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
-#include "TimerManager.h"
-
-
+#include "HealthComponent.h"
+#include "WeaponComponent.h"
+#include "BattleSystem.h"
+#include "Engine/World.h"
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	// 이동/카메라 토글 전부 입력 이벤트나 타이머로 처리되고, 매 프레임 갱신해야 하는 로직이
+	// 없어서 Tick 자체를 꺼둔다.
+	PrimaryActorTick.bCanEverTick = false;
 
 	// FPS Camera
-	firstPersonCamera =CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+	firstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	firstPersonCamera->SetupAttachment(GetMesh(), TEXT("head"));
 	firstPersonCamera->SetRelativeLocation(FVector(20.0f, -5.0f, 65.0f));
 	firstPersonCamera->SetRelativeRotation(FRotator::ZeroRotator);
 	firstPersonCamera->bUsePawnControlRotation = true;
 
 	// Spring Arm
-	springArm =CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
+	springArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	springArm->SetupAttachment(GetCapsuleComponent());
 	springArm->TargetArmLength = 300.f;
 	springArm->SetRelativeLocation(FVector(0.f, 20.f, 64.f));
 	springArm->bUsePawnControlRotation = true;
 
 	// TPS Camera
-	thirdPersonCamera =CreateDefaultSubobject<UCameraComponent>(TEXT("ThirdPersonCamera"));
+	thirdPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ThirdPersonCamera"));
 	thirdPersonCamera->SetupAttachment(springArm);
 	thirdPersonCamera->bUsePawnControlRotation = false;
 
 	isFirstPerson = false;
 
-	walkSpeed = 500.0f;
-	runSpeed = 1300.0f;
-	isRunning = false;
-
-	maxHealth = 100.0f;
-	currentHealth = maxHealth;
-	isDead = false;
-
-	maxAmmo = 30;
-	currentAmmo = maxAmmo;
-	reserveAmmo = 90;
-
-	attackDamage = 10.0f;
-	reloadTime = 2.0f;
-	isReloading = false;
-
-	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
-	
-	//앉기
-	crouchSpeed = 150.0f;
-	isCrouching = false;
-
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCharacterMovement()->CrouchedHalfHeight = 44.0f;
 
-	specialSkillCooldown = 5.0f;
-	isSpecialSkillReady = true;
+	healthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	weaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("WeaponComponent"));
+
+	battleSystemClass = ABattleSystem::StaticClass();
 }
 
 // Called when the game starts or when spawned
@@ -90,13 +72,26 @@ void APlayerCharacter::BeginPlay()
 	// 시작은 TPS 카메라 활성화
 	firstPersonCamera->SetActive(false);
 	thirdPersonCamera->SetActive(true);
-}
 
+	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
 
-// Called every frame
-void APlayerCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
+	// BattleSystem은 AActor라 컴포넌트로 붙일 수 없어서, 이 캐릭터 전용으로 하나 스폰해서 들고 있는다.
+	if (battleSystemClass)
+	{
+		FActorSpawnParameters spawnParams;
+		spawnParams.Owner = this;
+		battleSystem = GetWorld()->SpawnActor<ABattleSystem>(battleSystemClass, spawnParams);
+	}
+
+	if (weaponComponent)
+	{
+		weaponComponent->Init(battleSystem, healthComponent);
+	}
+
+	if (healthComponent)
+	{
+		healthComponent->onDeath.AddDynamic(this, &APlayerCharacter::HandleDeath);
+	}
 }
 
 // Called to bind functionality to input
@@ -134,14 +129,15 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 			enhancedInputComponent->BindAction(crouchAction, ETriggerEvent::Completed, this, &APlayerCharacter::StopCrouch);
 		}
 
-		if (attackAction)
+		// 공격/재장전은 캐릭터를 거치지 않고 weaponComponent로 바로 연결한다.
+		if (attackAction && weaponComponent)
 		{
-			enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, this, &APlayerCharacter::Attack);
+			enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, weaponComponent, &UWeaponComponent::Attack);
 		}
 
-		if (reloadAction)
+		if (reloadAction && weaponComponent)
 		{
-			enhancedInputComponent->BindAction(reloadAction, ETriggerEvent::Started, this, &APlayerCharacter::Reload);
+			enhancedInputComponent->BindAction(reloadAction, ETriggerEvent::Started, weaponComponent, &UWeaponComponent::Reload);
 		}
 
 		if (specialSkillAction)
@@ -158,7 +154,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void APlayerCharacter::Move(const FInputActionValue& value)
 {
-	if (isDead)
+	if (healthComponent && healthComponent->isDead)
 	{
 		return;
 	}
@@ -180,7 +176,7 @@ void APlayerCharacter::Move(const FInputActionValue& value)
 
 void APlayerCharacter::Look(const FInputActionValue& value)
 {
-	if (isDead)
+	if (healthComponent && healthComponent->isDead)
 	{
 		return;
 	}
@@ -192,6 +188,13 @@ void APlayerCharacter::Look(const FInputActionValue& value)
 		AddControllerYawInput(lookValue.X);
 		AddControllerPitchInput(lookValue.Y);
 	}
+}
+
+bool APlayerCharacter::CanRun() const
+{
+	const bool isAlive = !healthComponent || !healthComponent->isDead;
+	const bool isReloading = weaponComponent && weaponComponent->isReloading;
+	return isAlive && !isReloading && !isCrouching;
 }
 
 void APlayerCharacter::StartRun()
@@ -209,6 +212,13 @@ void APlayerCharacter::StopRun()
 {
 	isRunning = false;
 	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
+}
+
+bool APlayerCharacter::CanCrouch() const
+{
+	const bool isAlive = !healthComponent || !healthComponent->isDead;
+	const bool isReloading = weaponComponent && weaponComponent->isReloading;
+	return isAlive && !isReloading && !GetCharacterMovement()->IsFalling();
 }
 
 void APlayerCharacter::StartCrouch()
@@ -235,149 +245,24 @@ void APlayerCharacter::StopCrouch()
 	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
 }
 
-bool APlayerCharacter::CanCrouch() const
-{
-	return !isDead && !isReloading && !GetCharacterMovement()->IsFalling();
-}
-
-
-//여기서 부터 전투관련 상태
-void APlayerCharacter::Attack()
-{
-	if (!CanAttack())
-	{
-		return;
-	}
-
-	currentAmmo--;
-
-	UE_LOG(LogTemp, Warning, TEXT("Attack! Ammo: %d / %d"), currentAmmo, reserveAmmo);
-
-	//총알 발사 구현
-}
-
-void APlayerCharacter::Reload()
-{
-	if (!CanReload())
-	{
-		return;
-	}
-
-	isReloading = true;
-	isRunning = false;
-	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
-
-	UE_LOG(LogTemp, Warning, TEXT("Reload Start"));
-
-	GetWorldTimerManager().SetTimer(
-		reloadTimerHandle,
-		this,
-		&APlayerCharacter::FinishReload,
-		reloadTime,
-		false
-	);
-}
-
-void APlayerCharacter::FinishReload()
-{
-	int neededAmmo = maxAmmo - currentAmmo;
-	int reloadAmmo = FMath::Min(neededAmmo, reserveAmmo);
-
-	currentAmmo += reloadAmmo;
-	reserveAmmo -= reloadAmmo;
-
-	isReloading = false;
-
-	UE_LOG(LogTemp, Warning, TEXT("Reload Finish! Ammo: %d / %d"), currentAmmo, reserveAmmo);
-}
-
-bool APlayerCharacter::CanAttack() const
-{
-	return !isDead && !isReloading && currentAmmo > 0;
-}
-
-bool APlayerCharacter::CanReload() const
-{
-	return !isDead && !isReloading && currentAmmo < maxAmmo && reserveAmmo > 0;
-}
-
-bool APlayerCharacter::CanRun() const
-{
-	return !isDead && !isReloading && !isCrouching;
-}
-
-
 void APlayerCharacter::UseSpecialSkill()
 {
-	if (!CanUseSpecialSkill())
+	// 쿨타임 판정과 실패 이벤트(onSkillAttackFailed)는 BattleSystem이 전담하므로,
+	// 여기서는 그대로 위임만 한다.
+	if (battleSystem)
 	{
-		return;
+		battleSystem->RequestSkillAttack(this);
 	}
-
-	isSpecialSkillReady = false;
-
-	UE_LOG(LogTemp, Warning, TEXT("Special Skill Used"));
-
-
-
-	GetWorldTimerManager().SetTimer(
-		specialSkillTimerHandle,
-		this,
-		&APlayerCharacter::ResetSpecialSkill,
-		specialSkillCooldown,
-		false
-	);
 }
 
-void APlayerCharacter::ResetSpecialSkill()
+void APlayerCharacter::HandleDeath(AActor* deadActor)
 {
-	isSpecialSkillReady = true;
-
-	UE_LOG(LogTemp, Warning, TEXT("Special Skill Ready"));
-}
-
-bool APlayerCharacter::CanUseSpecialSkill() const
-{
-	return !isDead && !isReloading && isSpecialSkillReady;
-}
-
-
-float APlayerCharacter::TakeDamage(
-	float damageAmount,
-	FDamageEvent const& damageEvent,
-	AController* eventInstigator,
-	AActor* damageCauser
-)
-{
-	if (isDead)
-	{
-		return 0.0f;
-	}
-
-	currentHealth -= damageAmount;
-
-	UE_LOG(LogTemp, Warning, TEXT("Take Damage: %f / Health: %f"), damageAmount, currentHealth);
-
-	if (currentHealth <= 0.0f)
-	{
-		currentHealth = 0.0f;
-		Die();
-	}
-
-	return damageAmount;
-}
-
-void APlayerCharacter::Die()
-{
-	isDead = true;
 	isRunning = false;
-	isReloading = false;
 
 	GetCharacterMovement()->DisableMovement();
 
 	UE_LOG(LogTemp, Warning, TEXT("Player Dead"));
 }
-
 
 //z키 누를시 카메라 시점 변경
 void APlayerCharacter::ToggleCamera()
