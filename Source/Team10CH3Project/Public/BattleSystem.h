@@ -7,6 +7,18 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSkillAttackFailed);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FOnBasicAttackHit,
+	AActor*,
+	targetActor,
+	float,
+	finalDamage,
+	bool,
+	isHeadShot,
+	FVector,
+	hitLocation
+);
+
 UCLASS()
 class TEAM10CH3PROJECT_API ABattleSystem : public AActor
 {
@@ -42,6 +54,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
 	float basicAttackRange = 3000.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
+	float headShotMultiplier = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
+	FName headShotTag = TEXT("Head");
+
+	UPROPERTY(BlueprintAssignable, Category = "Battle|BasicAttack")
+	FOnBasicAttackHit onBasicAttackHit;
+
 	UFUNCTION(BlueprintCallable)
 	void RequestBasicAttack(AActor* attackerActor);
 
@@ -74,4 +95,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void RequestSkillAttack(AActor* attackerActor);
+
+private:
+	bool IsHeadShot(const FHitResult& hitResult) const;
 };

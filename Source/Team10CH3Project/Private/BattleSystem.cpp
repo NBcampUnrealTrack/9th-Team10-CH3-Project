@@ -1,5 +1,6 @@
 #include "BattleSystem.h"
 #include "HealthComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 ABattleSystem::ABattleSystem()
@@ -57,7 +58,21 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 	{
 		AActor* hitActor = hitResult.GetActor();
 
-		Attack(hitActor, attackDamageAmount, shooterActor, hitResult.ImpactPoint);
+		if (hitActor == nullptr || hitActor->FindComponentByClass<UHealthComponent>() == nullptr)
+		{
+			return;
+		}
+
+		bool isHeadShot = IsHeadShot(hitResult);
+		float finalDamage = attackDamageAmount;
+
+		if (isHeadShot)
+		{
+			finalDamage *= headShotMultiplier;
+		}
+
+		Attack(hitActor, finalDamage, shooterActor, hitResult.ImpactPoint);	
+		onBasicAttackHit.Broadcast(hitActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
 	}
 }
 
@@ -200,4 +215,16 @@ void ABattleSystem::RequestSkillAttack(AActor* attackerActor)
 	AttackAroundLocation(skillLocation, attackerActor, skillAttackDamage, skillAttackRange);
 
 	StartSkillCooldown();
+}
+
+bool ABattleSystem::IsHeadShot(const FHitResult& hitResult) const
+{
+	UPrimitiveComponent* hitComponent = hitResult.GetComponent();
+
+	if (hitComponent == nullptr)
+	{
+		return false;
+	}
+
+	return hitComponent->ComponentHasTag(headShotTag);
 }
