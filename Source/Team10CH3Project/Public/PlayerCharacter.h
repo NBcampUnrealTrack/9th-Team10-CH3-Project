@@ -14,6 +14,7 @@
 class UHealthComponent;
 class UWeaponComponent;
 class ABattleSystem;
+class UUserWidget;
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -62,6 +63,14 @@ public:
 	// 탄약/재장전 상태 전담 컴포넌트. 실제 공격 판정은 battleSystem에 위임한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	UWeaponComponent* weaponComponent = nullptr;
+
+	// 플레이 시작 시 화면에 띄울 HUD 위젯 클래스. 에디터에서 WBP_PlayerHUD 등을 지정한다.
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> playerHudClass;
+
+	// 실제로 생성돼 화면에 추가된 HUD 위젯 인스턴스.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UUserWidget* playerHudWidget = nullptr;
 
 protected:
 	// Called when the game starts or when spawned
@@ -121,7 +130,28 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Camera")
 	bool isFirstPerson;
 
+	// 앉기/일어서기 시 springArm이 바로 순간이동하지 않고 Tick에서 서서히 목표 높이로 보간되도록 함
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Camera")
+	float standingCameraHeight = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Camera")
+	float crouchedCameraHeight = 34.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Camera")
+	float cameraInterpSpeed = 10.0f;
+
+	// standingCameraHeight/crouchedCameraHeight 목표값 쪽으로 순수하게 보간 중인 높이.
+	// cameraOffsetCompensation과 분리해서 관리해야 이중으로 더해지는 걸 방지할 수 있다.
+	float springArmBaseHeight = 0.0f;
+
+	// Crouch()/UnCrouch() 호출 시 캡슐(springArm의 부모)이 그 프레임에 즉시 이동한 만큼을 담아뒀다가
+	// Tick에서 서서히 0으로 줄여서, 캡슐의 순간이동으로 인한 카메라 순간이동을 상쇄한다.
+	float cameraOffsetCompensation = 0.0f;
+
 public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 };

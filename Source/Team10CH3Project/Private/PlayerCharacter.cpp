@@ -14,13 +14,13 @@
 #include "WeaponComponent.h"
 #include "BattleSystem.h"
 #include "Engine/World.h"
+#include "Blueprint/UserWidget.h"
 
 // Sets default values
 APlayerCharacter::APlayerCharacter()
 {
-	// 이동/카메라 토글 전부 입력 이벤트나 타이머로 처리되고, 매 프레임 갱신해야 하는 로직이
-	// 없어서 Tick 자체를 꺼둔다.
-	PrimaryActorTick.bCanEverTick = false;
+	// 앉기/일어서기 시 카메라 높이를 매 프레임 보간해야 해서 Tick을 켜둔다.
+	PrimaryActorTick.bCanEverTick = true;
 
 	// FPS Camera
 	firstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
@@ -33,7 +33,8 @@ APlayerCharacter::APlayerCharacter()
 	springArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	springArm->SetupAttachment(GetCapsuleComponent());
 	springArm->TargetArmLength = 300.f;
-	springArm->SetRelativeLocation(FVector(0.f, 20.f, 64.f));
+	springArm->SetRelativeLocation(FVector(0.f, 20.f, standingCameraHeight));
+	springArmBaseHeight = standingCameraHeight;
 	springArm->bUsePawnControlRotation = true;
 
 	// TPS Camera
@@ -67,6 +68,16 @@ void APlayerCharacter::BeginPlay()
 				subsystem->AddMappingContext(defaultMappingContext, 0);
 			}
 		}
+
+		// 실제로 이 폰을 조종하는 로컬 플레이어일 때만 HUD를 띄운다.
+		if (playerHudClass)
+		{
+			playerHudWidget = CreateWidget<UUserWidget>(playerController, playerHudClass);
+			if (playerHudWidget)
+			{
+				playerHudWidget->AddToViewport();
+			}
+		}
 	}
 
 	// 시작은 TPS 카메라 활성화
@@ -92,6 +103,21 @@ void APlayerCharacter::BeginPlay()
 	{
 		healthComponent->onDeath.AddDynamic(this, &APlayerCharacter::HandleDeath);
 	}
+}
+
+// Called every frame
+void APlayerCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	const float targetHeight = isCrouching ? crouchedCameraHeight : standingCameraHeight;
+	springArmBaseHeight = FMath::FInterpTo(springArmBaseHeight, targetHeight, DeltaTime, cameraInterpSpeed);
+
+	cameraOffsetCompensation = FMath::FInterpTo(cameraOffsetCompensation, 0.0f, DeltaTime, cameraInterpSpeed);
+
+	FVector springArmLocation = springArm->GetRelativeLocation();
+	springArmLocation.Z = springArmBaseHeight + cameraOffsetCompensation;
+	springArm->SetRelativeLocation(springArmLocation);
 }
 
 // Called to bind functionality to input
@@ -228,19 +254,32 @@ void APlayerCharacter::StartCrouch()
 		return;
 	}
 
+	// Crouch()가 캡슐 크기를 줄이면서 발 위치를 유지하려고 캡슐(springArm의 부모)을 그 프레임에
+	// 즉시 아래로 이동시킨다. 그 이동량을 미리/이후 캡슐 반높이 차이로 계산해 보정값에 더해두면,
+	// Tick에서 그 보정값이 서서히 0으로 줄어들면서 순간이동 없이 부드럽게 이어진다.
+	const float previousHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
 	isCrouching = true;
 	isRunning = false;
 
 	Crouch();
+
+	const float newHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	cameraOffsetCompensation += (previousHalfHeight - newHalfHeight);
 
 	GetCharacterMovement()->MaxWalkSpeed = crouchSpeed;
 }
 
 void APlayerCharacter::StopCrouch()
 {
+	const float previousHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+
 	isCrouching = false;
 
 	UnCrouch();
+
+	const float newHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	cameraOffsetCompensation += (previousHalfHeight - newHalfHeight);
 
 	GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
 }
