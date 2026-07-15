@@ -13,7 +13,11 @@ AGrenadeProjectile::AGrenadeProjectile()
 	SetRootComponent(collisionComponent);
 
 	collisionComponent->SetSphereRadius(15.0f);
-	collisionComponent->SetCollisionProfileName(TEXT("BlockAll"));
+	collisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	collisionComponent->SetCollisionObjectType(ECC_WorldDynamic);
+
+	collisionComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	collisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 
 	meshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	meshComponent->SetupAttachment(collisionComponent);
