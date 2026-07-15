@@ -1,5 +1,6 @@
 #include "BattleSystem.h"
 #include "HealthComponent.h"
+#include "GrenadeProjectile.h"
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -172,6 +173,80 @@ void ABattleSystem::RequestBasicAttack(AActor* attackerActor)
 	FireLineTrace(attackerActor, basicAttackDamage, basicAttackRange);
 }
 
+void ABattleSystem::RequestBasicAttackByView(
+	AActor* attackerActor,
+	FVector viewLocation,
+	FVector viewDirection,
+	FVector fireLocation
+)
+{
+	if (attackerActor == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
+		return;
+	}
+
+	FVector aimStartLocation = viewLocation;
+	FVector aimEndLocation = viewLocation + viewDirection * basicAttackRange;
+
+	FHitResult aimHitResult;
+
+	FCollisionQueryParams aimTraceParams;
+	aimTraceParams.AddIgnoredActor(attackerActor);
+
+	bool isAimHit = GetWorld()->LineTraceSingleByChannel(
+		aimHitResult,
+		aimStartLocation,
+		aimEndLocation,
+		ECC_Visibility,
+		aimTraceParams
+	);
+
+	FVector aimPoint = aimEndLocation;
+
+	if (isAimHit)
+	{
+		aimPoint = aimHitResult.ImpactPoint;
+	}
+
+	FVector fireDirection = (aimPoint - fireLocation).GetSafeNormal();
+	FVector fireEndLocation = fireLocation + fireDirection * basicAttackRange;
+
+	FHitResult hitResult;
+
+	FCollisionQueryParams fireTraceParams;
+	fireTraceParams.AddIgnoredActor(attackerActor);
+
+	bool isHit = GetWorld()->LineTraceSingleByChannel(
+		hitResult,
+		fireLocation,
+		fireEndLocation,
+		ECC_Visibility,
+		fireTraceParams
+	);
+
+	if (isHit)
+	{
+		AActor* hitActor = hitResult.GetActor();
+
+		if (hitActor == nullptr || hitActor->FindComponentByClass<UHealthComponent>() == nullptr)
+		{
+			return;
+		}
+
+		bool isHeadShot = IsHeadShot(hitResult);
+		float finalDamage = basicAttackDamage;
+
+		if (isHeadShot)
+		{
+			finalDamage *= headShotMultiplier;
+		}
+
+		Attack(hitActor, finalDamage, attackerActor, hitResult.ImpactPoint);
+		onBasicAttackHit.Broadcast(hitActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
+	}
+}
+
 bool ABattleSystem::CanUseSkillAttack() const
 {
 	return !isSkillOnCooldown;
@@ -215,6 +290,62 @@ void ABattleSystem::RequestSkillAttack(AActor* attackerActor)
 	AttackAroundLocation(skillLocation, attackerActor, skillAttackDamage, skillAttackRange);
 
 	StartSkillCooldown();
+}
+
+void ABattleSystem::RequestSkillAttackByView(
+	AActor* attackerActor,
+	FVector viewLocation,
+	FVector viewDirection,
+	FVector throwLocation
+)
+{
+	if (!CanUseSkillAttack())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Skill attack failed: cooldown"));
+		onSkillAttackFailed.Broadcast();
+		return;
+	}
+
+	if (attackerActor == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
+		return;
+	}
+
+	if (grenadeProjectileClass == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("grenadeProjectileClass is null"));
+		return;
+	}
+
+	FVector throwDirection = viewDirection.GetSafeNormal();
+
+	FVector throwVelocity = throwDirection * grenadeThrowPower
+		+ FVector::UpVector * grenadeUpPower;
+
+	FActorSpawnParameters spawnParams;
+	spawnParams.Owner = attackerActor;
+
+	AGrenadeProjectile* grenadeProjectile = GetWorld()->SpawnActor<AGrenadeProjectile>(
+		grenadeProjectileClass,
+		throwLocation,
+		throwDirection.Rotation(),
+		spawnParams
+	);
+
+	if (grenadeProjectile)
+	{
+		grenadeProjectile->damageAmount = skillAttackDamage;
+		grenadeProjectile->damageRange = skillAttackRange;
+
+		grenadeProjectile->InitGrenade(
+			this,
+			attackerActor,
+			throwVelocity
+		);
+
+		StartSkillCooldown();
+	}
 }
 
 bool ABattleSystem::IsHeadShot(const FHitResult& hitResult) const
