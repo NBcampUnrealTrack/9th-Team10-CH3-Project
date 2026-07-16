@@ -2,14 +2,24 @@
 
 void AFPSGameMode::StartGame()
 {
+	if (isGameStarted)
+	{
+		return;
+	}
+
 	isGameStarted = true;
 	isGameOver = false;
 	isGameCleared = false;
+	isGamePaused = false;
 
 	currentKillCount = 0;
 	score = 0;
 
 	remainingTime = timeLimit;
+
+	onScoreChanged.Broadcast(score, currentKillCount);
+	onTimeChanged.Broadcast(remainingTime);
+	onGameStarted.Broadcast();
 
 	GetWorldTimerManager().SetTimer(
 		gameTimerHandle,
@@ -48,6 +58,7 @@ void AFPSGameMode::ClearGame()
 
 	isGameCleared = true;
 	isGameStarted = false;
+	isGamePaused = false;
 
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 
@@ -63,10 +74,45 @@ void AFPSGameMode::GameOver()
 
 	isGameOver = true;
 	isGameStarted = false;
+	isGamePaused = false;
 
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 
 	onGameOver.Broadcast();
+}
+
+void AFPSGameMode::PauseGame()
+{
+	if (!isGameStarted || isGameOver || isGameCleared || isGamePaused)
+	{
+		return;
+	}
+
+	isGamePaused = true;
+
+	GetWorldTimerManager().ClearTimer(gameTimerHandle);
+
+	onGamePaused.Broadcast();
+}
+
+void AFPSGameMode::ResumeGame()
+{
+	if (!isGameStarted || isGameOver || isGameCleared || !isGamePaused)
+	{
+		return;
+	}
+
+	isGamePaused = false;
+
+	GetWorldTimerManager().SetTimer(
+		gameTimerHandle,
+		this,
+		&AFPSGameMode::UpdateGameTimer,
+		1.0f,
+		true
+	);
+
+	onGameResumed.Broadcast();
 }
 
 void AFPSGameMode::UpdateGameTimer()
