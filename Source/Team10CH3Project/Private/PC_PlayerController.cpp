@@ -4,6 +4,8 @@
 
 #include "PlayerCharacter.h"
 
+#include "FPSGameMode.h"
+
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -29,7 +31,7 @@ void APC_PlayerController::BeginPlay()
 		}
 	}
 
-	if (IsLocalController() && playerHudClass)
+	/*if (IsLocalController() && playerHudClass)
 	{
 		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
 
@@ -37,6 +39,33 @@ void APC_PlayerController::BeginPlay()
 		{
 			playerHudWidget->AddToViewport();
 		}
+	}*/
+	
+	//Joonhyeong
+	if (playerHudClass)
+	{
+		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
+	}
+	if (startWidgetClass)
+	{
+		startWidget = CreateWidget<UUserWidget>(this, startWidgetClass);
+	}
+	if (endWidgetClass)
+	{
+		endWidget = CreateWidget<UUserWidget>(this, endWidgetClass);
+	}
+	if (optionWidgetClass)
+	{
+		optionWidget = CreateWidget<UUserWidget>(this, optionWidgetClass);
+	}
+	
+	if (startWidget)
+	{
+		startWidget->AddToViewport();
+		
+		bShowMouseCursor = true;
+		FInputModeUIOnly InputMode;
+		SetInputMode(InputMode);
 	}
 }
 
@@ -244,4 +273,32 @@ void APC_PlayerController::StopAim()
 	{
 		character->StopAim();
 	}
+}
+
+void APC_PlayerController::OnStartButtonClicked()
+{
+	if (startWidget)
+	{
+		startWidget->RemoveFromParent();
+	}
+	
+	if (playerHudWidget)
+	{
+		playerHudWidget->AddToViewport();
+		
+		bShowMouseCursor = false;
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+	
+		AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+		if (gameMode)
+		{
+			gameMode->StartGame();
+		}
+	}
+}
+
+void APC_PlayerController::OnEndButtonClicked()
+{
+	return;
 }
