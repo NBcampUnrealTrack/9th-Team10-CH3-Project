@@ -19,6 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	hitLocation
 );
 
+class AGrenadeProjectile;
+
 UCLASS()
 class TEAM10CH3PROJECT_API ABattleSystem : public AActor
 {
@@ -66,6 +68,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RequestBasicAttack(AActor* attackerActor);
 
+	UFUNCTION(BlueprintCallable)
+	void RequestBasicAttackByView(
+		AActor* attackerActor,
+		FVector viewLocation,
+		FVector viewDirection,
+		FVector fireLocation
+	);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|SkillAttack")
 	float skillAttackDamage = 50.0f;
 
@@ -81,6 +91,15 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Battle|SkillAttack")
 	bool isSkillOnCooldown = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|SkillAttack")
+	TSubclassOf<AGrenadeProjectile> grenadeProjectileClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|SkillAttack")
+	float grenadeThrowPower = 1200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|SkillAttack")
+	float grenadeUpPower = 300.0f;
+
 	UPROPERTY(BlueprintAssignable, Category = "Battle|SkillAttack")
 	FOnSkillAttackFailed onSkillAttackFailed;
 
@@ -95,6 +114,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void RequestSkillAttack(AActor* attackerActor);
+
+	UFUNCTION(BlueprintCallable)
+	void RequestSkillAttackByView(
+		AActor* attackerActor,
+		FVector viewLocation,
+		FVector viewDirection,
+		FVector throwLocation
+	);
 
 private:
 	bool IsHeadShot(const FHitResult& hitResult) const;
