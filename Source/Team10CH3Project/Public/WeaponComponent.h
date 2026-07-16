@@ -40,7 +40,12 @@ public:
 	bool isReloading = false;
 
 	UFUNCTION(BlueprintCallable)
-	void Attack();
+	void Attack(
+		AActor* attackerActor,
+		const FVector& viewLocation,
+		const FVector& viewDirection,
+		const FVector& fireLocation
+	);
 
 	UFUNCTION(BlueprintCallable)
 	void Reload();
