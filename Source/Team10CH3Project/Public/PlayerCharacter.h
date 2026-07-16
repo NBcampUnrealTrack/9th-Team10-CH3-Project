@@ -5,16 +5,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
-
+#include "InputMappingContext.h"
+#include "InputAction.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "PlayerCharacter.generated.h"
 
 class UHealthComponent;
 class UWeaponComponent;
 class ABattleSystem;
-
+class UUserWidget;
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -22,8 +22,38 @@ class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	
+	// Sets default values for this character's properties
 	APlayerCharacter();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputMappingContext* defaultMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* moveAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* lookAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* jumpAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* runAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* attackAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* reloadAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* toggleCameraAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* crouchAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* specialSkillAction;
 
 	// 체력/사망은 HealthComponent가 단일 진실 소스다. PlayerCharacter는 자체적으로
 	// currentHealth/isDead 같은 값을 따로 들고 있지 않고, 항상 이 컴포넌트를 참조한다.
@@ -33,41 +63,14 @@ public:
 	// 탄약/재장전 상태 전담 컴포넌트. 실제 공격 판정은 battleSystem에 위임한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	UWeaponComponent* weaponComponent = nullptr;
-	
 
-	void Move(const FInputActionValue& value);
-	void Look(const FInputActionValue& value);
+	// 플레이 시작 시 화면에 띄울 HUD 위젯 클래스. 에디터에서 WBP_PlayerHUD 등을 지정한다.
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> playerHudClass;
 
-	void StartRun();
-	void StopRun();
-	bool CanRun() const;
-
-	void StartCrouch();
-	void StopCrouch();
-	bool CanCrouch() const;
-
-	void StartSpecialSkill();
-	void ReleaseSpecialSkill();
-
-	// Camera
-	void ToggleCamera();
-
-	void StartAim();
-	void StopAim();
-
-	void EnterShoulderAim();
-	void EnterAdsAim();
-	void ExitAim();
-
-	bool CanAim() const;
-
-	void Attack();
-	void Reload();
-
-	bool GetAttackView(
-		FVector& outViewLocation,
-		FVector& outViewDirection
-	) const;
+	// 실제로 생성돼 화면에 추가된 HUD 위젯 인스턴스.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UUserWidget* playerHudWidget = nullptr;
 
 protected:
 	// Called when the game starts or when spawned
@@ -88,9 +91,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool isCrouching = false;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	USkeletalMeshComponent* weaponMesh;
-
 	// 실제 공격 판정(라인 트레이스, 데미지, 헤드샷, 범위 공격)을 담당하는 액터.
 	// AActor 파생 클래스라 컴포넌트로 붙일 수 없어서, BeginPlay에서 스폰해서 참조만 들고 있는다.
 	UPROPERTY(EditDefaultsOnly, Category = "Battle")
@@ -99,8 +99,24 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Battle")
 	ABattleSystem* battleSystem = nullptr;
 
+	void Move(const FInputActionValue& value);
+	void Look(const FInputActionValue& value);
+
+	void StartRun();
+	void StopRun();
+	bool CanRun() const;
+
+	void StartCrouch();
+	void StopCrouch();
+	bool CanCrouch() const;
+
+	void UseSpecialSkill();
+
 	UFUNCTION()
 	void HandleDeath(AActor* deadActor);
+
+	// Camera
+	void ToggleCamera();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* firstPersonCamera;
@@ -113,9 +129,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Camera")
 	bool isFirstPerson;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	UCameraComponent* adsCamera;
 
 	// 앉기/일어서기 시 springArm이 바로 순간이동하지 않고 Tick에서 서서히 목표 높이로 보간되도록 함
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Camera")
@@ -135,74 +148,10 @@ protected:
 	// Tick에서 서서히 0으로 줄여서, 캡슐의 순간이동으로 인한 카메라 순간이동을 상쇄한다.
 	float cameraOffsetCompensation = 0.0f;
 
-
-	UPROPERTY(BlueprintReadOnly, Category = "Aim")
-	bool isAiming = false;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Aim")
-	bool isAdsAiming = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float doubleClickTime = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float aimInterpSpeed = 10.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float normalFieldOfView = 90.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float shoulderFieldOfView = 70.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float adsFieldOfView = 55.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float normalArmLength = 300.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float shoulderArmLength = 100.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	FVector normalSocketOffset = FVector(0.0f, 0.0f, 0.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	FVector shoulderSocketOffset = FVector(0.0f, 30.0f, 15.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
-	float aimingMoveSpeed = 200.0f;
-
-	float lastAimPressTime = -5.0f;
-
-	// 수류탄 준비에 필요한 최소 시전시간
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Grenade")
-	float grenadeCastTime = 0.8f;
-
-	// 현재 수류탄 시전 중인지
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
-	bool isCastingGrenade = false;
-
-	// 최소 시전시간이 완료되어 던질 준비가 됐는지
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
-	bool isGrenadeReady = false;
-
-	// 현재 G키를 누르고 있는지
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
-	bool isGrenadeKeyHeld = false;
-
-	// 시전 도중 G키를 먼저 뗐는지
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
-	bool shouldThrowAfterCast = false;
-
-	FTimerHandle grenadeCastTimerHandle;
-
-	void FinishGrenadeCast();
-	void ThrowGrenade();
-	void ResetGrenadeState();
-	
-
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 };
