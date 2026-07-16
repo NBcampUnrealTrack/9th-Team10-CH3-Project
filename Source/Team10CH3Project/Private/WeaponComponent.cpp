@@ -33,7 +33,7 @@ bool UWeaponComponent::CanReload() const
 	return isAlive && !isReloading && currentAmmo < maxAmmo && reserveAmmo > 0;
 }
 
-void UWeaponComponent::Attack()
+void UWeaponComponent::Attack(AActor* attackerActor, const FVector& viewLocation, const FVector& viewDirection, const FVector& fireLocation)
 {
 	if (!CanAttack())
 	{
@@ -46,7 +46,7 @@ void UWeaponComponent::Attack()
 
 	if (battleSystem)
 	{
-		battleSystem->RequestBasicAttack(GetOwner());
+		battleSystem->RequestBasicAttackByView(attackerActor, viewLocation, viewDirection, fireLocation);
 	}
 }
 
