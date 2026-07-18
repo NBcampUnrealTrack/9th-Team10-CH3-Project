@@ -142,6 +142,10 @@ void APC_PlayerController::SetupInputComponent()
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Completed, this, &APC_PlayerController::StopAim);
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Canceled, this, &APC_PlayerController::StopAim);
 	}
+	if (optionAction)
+	{
+		enhancedInputComponent->BindAction(optionAction, ETriggerEvent::Started, this, &APC_PlayerController::OptionMenu);
+	}
 }
 
 APlayerCharacter* APC_PlayerController::GetPlayerCharacter()
@@ -301,4 +305,32 @@ void APC_PlayerController::OnStartButtonClicked()
 void APC_PlayerController::OnEndButtonClicked()
 {
 	return;
+}
+
+void APC_PlayerController::OptionMenu()
+{
+	UE_LOG(LogTemp, Warning, TEXT("OptionMenu"));
+	
+	if (optionWidget->IsInViewport())
+	{
+		optionWidget->RemoveFromParent();
+		
+		bShowMouseCursor = false;
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		
+		return;
+	}
+	
+	if (optionWidget && playerHudWidget->IsInViewport())
+	{
+		optionWidget->AddToViewport(10);
+		
+		bShowMouseCursor = true;
+		FInputModeGameAndUI InputMode;
+		SetInputMode(InputMode);
+		
+		return;
+	}
+	
 }

@@ -88,6 +88,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnEndButtonClicked();
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* optionAction = nullptr;
+	
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;
@@ -116,4 +119,7 @@ private:
 
 	void StartAim();
 	void StopAim();
+	
+	//Joonhyeong
+	void OptionMenu();
 };
