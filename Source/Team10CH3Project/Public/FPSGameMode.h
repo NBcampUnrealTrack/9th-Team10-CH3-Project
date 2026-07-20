@@ -20,6 +20,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameCleared);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameOver);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameStarted);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGamePaused);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameResumed);
 
 UCLASS()
 class TEAM10CH3PROJECT_API AFPSGameMode : public AGameModeBase
@@ -45,6 +49,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode")
 	bool isGameCleared = false;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode")
+	bool isGamePaused = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Time")
 	float timeLimit = 60.0f;
 
@@ -65,6 +72,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
 	FOnGameOver onGameOver;
 
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnGameStarted onGameStarted;
+
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnGamePaused onGamePaused;
+
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnGameResumed onGameResumed;
+
 	UFUNCTION(BlueprintCallable)
 	void StartGame();
 
@@ -78,4 +94,10 @@ public:
 	void GameOver();
 
 	void UpdateGameTimer();
+
+	UFUNCTION(BlueprintCallable)
+	void PauseGame();
+
+	UFUNCTION(BlueprintCallable)
+	void ResumeGame();
 };
