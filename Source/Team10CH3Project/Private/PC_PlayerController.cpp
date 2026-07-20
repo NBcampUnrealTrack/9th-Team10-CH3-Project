@@ -319,6 +319,12 @@ void APC_PlayerController::OptionMenu()
 		FInputModeGameOnly InputMode;
 		SetInputMode(InputMode);
 		
+		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+		if (GameMode)
+		{
+			GameMode->ResumeGame();
+		}
+		
 		return;
 	}
 	
@@ -330,7 +336,34 @@ void APC_PlayerController::OptionMenu()
 		FInputModeGameAndUI InputMode;
 		SetInputMode(InputMode);
 		
+		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+		if (GameMode)
+		{
+			GameMode->PauseGame();
+		}
+		
 		return;
 	}
 	
 }
+
+void APC_PlayerController::OnReturnButtonClicked()
+{
+	UE_LOG(LogTemp, Warning, TEXT("OnReturnButtonClicked"));
+	
+	if (optionWidget->IsInViewport())
+	{
+		optionWidget->RemoveFromParent();
+		
+		bShowMouseCursor = false;
+		FInputModeGameOnly InputMode;
+		SetInputMode(InputMode);
+		
+		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+		if (GameMode)
+		{
+			GameMode->ResumeGame();
+		}
+	}
+}
+

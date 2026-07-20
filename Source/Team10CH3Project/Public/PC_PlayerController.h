@@ -91,6 +91,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* optionAction = nullptr;
 	
+	UFUNCTION(BlueprintCallable, Category = "Option")
+	void OnReturnButtonClicked();
+	
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;
