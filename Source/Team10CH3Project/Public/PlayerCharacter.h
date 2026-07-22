@@ -71,8 +71,6 @@ public:
 		FVector& outViewDirection
 	) const;
 
-	// 총기의 왼손 그립 소켓을 hand_r 본 공간으로 변환한다.
-	// AnimBP의 FABRIK/Two Bone IK Effector Transform으로 바로 사용할 수 있다.
 	UFUNCTION(BlueprintPure, Category = "Animation|IK")
 	bool GetLeftHandIKTransform(FTransform& outTransform) const;
 
@@ -98,15 +96,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USkeletalMeshComponent* weaponMesh;
 
-	// 로컬 FPS에서만 렌더링되는 전용 팔과 총. BP에서 FirstPersonArms에
-	// 팔 전용 Skeletal Mesh/Anim Class를 지정하면 TPS 전신과 완전히 분리된다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	USkeletalMeshComponent* firstPersonArmsMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	USkeletalMeshComponent* firstPersonWeaponMesh;
 
-	// Manny 스켈레톤 원점은 골반에 있으므로 카메라 아래로 내려 어깨/손을 시야에 맞춘다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
 	FVector firstPersonArmsLocation = FVector(-10.0f, 0.0f, -150.0f);
 
@@ -119,7 +114,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "First Person")
 	FName firstPersonWeaponSocketName = TEXT("WeaponSocket");
 
-	// 팔 메시가 아직 없을 때 총만 카메라 아래에 보여 주는 임시 위치다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
 	FVector firstPersonWeaponFallbackLocation = FVector(45.0f, 18.0f, -18.0f);
 
@@ -132,8 +126,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|IK")
 	FName rightHandBoneName = TEXT("hand_r");
 
-	// 기본 UE 소총 애니메이션 시퀀스를 BP_PlayerCharacter에서 지정한다.
-	// AnimBP에는 같은 이름의 Slot 노드가 있어야 동적 몽타주가 재생된다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Weapon")
 	UAnimSequenceBase* equipAnimation = nullptr;
 
@@ -143,8 +135,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Weapon")
 	UAnimSequenceBase* reloadAnimation = nullptr;
 
-	// AKS74U FPS 팔 스켈레톤 전용 액션. TPS 전신 애니메이션과 스켈레톤이
-	// 다르므로 같은 시퀀스를 두 AnimInstance에 재생하지 않고 별도로 관리한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
 	UAnimSequenceBase* firstPersonEquipAnimation = nullptr;
 
@@ -181,7 +171,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.0"))
 	float animationBlendOutTime = 0.15f;
 
-	// 짧은 FPS 반동은 조준 루프와 오래 교차 페이드하면 두 자세가 겹쳐 보인다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
 	float firstPersonFireBlendInTime = 0.025f;
 
@@ -205,15 +194,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* firstPersonCamera;
 
-	// True FPS 카메라가 최종 애니메이션의 head 위치를 따라간다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
 	bool followHeadPosition = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
 	FName firstPersonViewBoneName = TEXT("head");
 
-	// head 본 중심이 아니라 실제 눈 위치에 가깝게 앞/위로 이동한다.
-	// 기존 BP에 저장된 잘못된 오프셋의 영향을 피하기 위해 새 속성으로 분리했다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
 	FVector firstPersonEyeOffset = FVector::ZeroVector;
 
@@ -238,26 +224,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* adsCamera;
 
-	// FPS 총기의 가늠자 뒤에 배치하는 조준 카메라 소켓.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|ADS")
 	FName adsSightSocketName = TEXT("SightSocket");
 
-	// 전방 가늠쇠 끝점. SightSocket과 이 소켓을 잇는 선을 카메라 전방에 맞춘다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|ADS")
 	FName adsFrontSightSocketName = TEXT("FrontSightSocket");
 
-	// 고정 FPS 카메라 앞에서 SightSocket이 도달할 위치. X는 카메라 앞 거리이며
-	// Y/Z는 화면 중심이므로 기본값 0이다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
 	FVector adsSightViewOffset = FVector(10.0f, 0.0f, 0.0f);
 
-	// ADS 중 팔/총 전체에 적용할 미세 회전값. 자동 소켓 회전 정렬이 꺼져 있어도
-	// 이 값은 기본 팔 회전에 더해져 가늠쇠의 좌우/상하 오차를 보정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
 	FRotator adsSightViewRotation = FRotator::ZeroRotator;
 
-	// SightSocket의 축이 X=총구 방향, Z=위쪽으로 정확히 설정된 경우에만 사용한다.
-	// 잘못된 축에서 활성화하면 팔 전체가 크게 회전하므로 기본값은 false다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
 	bool alignAdsSightRotation = false;
 
@@ -289,7 +267,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Aim")
 	bool isAdsAiming = false;
 
-	// 카메라(Control Rotation)와 캐릭터의 회전 차이. AnimBP의 Aim Offset 입력으로 사용한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|Aim")
 	float aimPitch = 0.0f;
 

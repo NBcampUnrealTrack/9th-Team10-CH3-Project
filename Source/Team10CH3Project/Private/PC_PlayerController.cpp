@@ -298,7 +298,6 @@ void APC_PlayerController::OnStartButtonClicked()
 
 void APC_PlayerController::OnEndButtonClicked()
 {
-	// 종료 동작은 위젯/플랫폼 정책에 맞춰 블루프린트에서 확장한다.
 }
 
 void APC_PlayerController::OptionMenu()

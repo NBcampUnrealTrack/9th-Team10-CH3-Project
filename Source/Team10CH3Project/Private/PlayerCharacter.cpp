@@ -24,7 +24,6 @@
 		// 앉기/일어서기 시 카메라 높이를 매 프레임 보간해야 해서 Tick을 켜둔다.
 		PrimaryActorTick.bCanEverTick = true;
 
-		// True FPS에서는 몸 전체가 카메라의 좌우 회전을 따라가고 캡슐은 항상 수직을 유지한다.
 		bUseControllerRotationYaw = true;
 		bUseControllerRotationPitch = false;
 		bUseControllerRotationRoll = false;
@@ -44,8 +43,6 @@
 		adsCamera->SetFieldOfView(adsFieldOfView);
 		adsCamera->SetActive(false);
 
-		// FPS Camera. 숨겨진 head 본의 자식으로 두면 본 스케일과 갱신 순서의
-		// 영향을 받을 수 있으므로 루트는 캡슐에 두고 Tick에서 최종 머리 위치를 적용한다.
 		firstPersonCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("FirstPersonCameraRoot"));
 		firstPersonCameraRoot->SetupAttachment(GetCapsuleComponent());
 		firstPersonCameraRoot->SetRelativeLocation(firstPersonEyeOffset);
@@ -55,17 +52,13 @@
 		firstPersonCamera->SetupAttachment(firstPersonCameraRoot);
 		firstPersonCamera->SetRelativeLocation(FVector::ZeroVector);
 		firstPersonCamera->SetRelativeRotation(FRotator::ZeroRotator);
-		// FPS 시점의 상하/좌우 입력은 항상 Control Rotation을 사용한다.
-		// 머리 본은 위치 추적에만 사용해야 Aim Offset과 카메라 Pitch가 서로 막지 않는다.
 		firstPersonCamera->bUsePawnControlRotation = true;
 
-		// FPS 전용 팔은 카메라 공간에서만 보이며 전신(TPS) 메시와 독립적으로 움직인다.
 		firstPersonArmsMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonArms"));
 		firstPersonArmsMesh->SetupAttachment(firstPersonCamera);
 		firstPersonArmsMesh->SetRelativeLocation(firstPersonArmsLocation);
 		firstPersonArmsMesh->SetRelativeRotation(firstPersonArmsRotation);
 		firstPersonArmsMesh->SetRelativeScale3D(FVector(firstPersonArmsScale));
-		// FPS/TPS 전환 함수에서 직접 표시 여부를 관리하므로 Owner 판정에 의존하지 않는다.
 		firstPersonArmsMesh->SetOnlyOwnerSee(false);
 		firstPersonArmsMesh->SetOwnerNoSee(false);
 		firstPersonArmsMesh->SetCastShadow(false);
@@ -120,8 +113,6 @@
 	{
 		Super::BeginPlay();
 
-		// 일반 FPS 카메라: 전신 머리 애니메이션을 따라가지 않고 캡슐의 고정 눈높이를
-		// 사용한다. 팔/총만 카메라 자식으로 움직여 화면 흔들림과 몸 관통을 방지한다.
 		firstPersonCameraRoot->AttachToComponent(
 			GetCapsuleComponent(),
 			FAttachmentTransformRules::KeepRelativeTransform
@@ -142,12 +133,10 @@
 			}
 		}
 
-		// 캐릭터 Tick을 스켈레탈 메시 애니메이션 평가 이후에 실행해 최종 head 위치를 읽는다.
 		PrimaryActorTick.TickGroup = TG_PostUpdateWork;
 		AddTickPrerequisiteComponent(GetMesh());
 
 
-		// 실제 게임은 FPS로 시작하고 TPS 카메라는 테스트 전환용으로만 둔다.
 		firstPersonCamera->SetActive(true);
 		thirdPersonCamera->SetActive(false);
 		adsCamera->SetActive(false);
@@ -161,8 +150,6 @@
 		thirdPersonCamera->SetFieldOfView(normalFieldOfView);
 		firstPersonCamera->SetFieldOfView(normalFieldOfView);
 
-		// TPS와 FPS에 남아 있는 기존 기본 소총을 AKS74U 패키지의 총기로 통일한다.
-		// BP 컴포넌트에 예전 메시/머티리얼이 저장되어 있어도 실행 시 확실히 덮어쓴다.
 		USkeletalMesh* sharedAks74uMesh = LoadObject<USkeletalMesh>(
 			nullptr,
 			TEXT("/Game/Character/Animation/Arms/AKS74U/Meshes/SK_AK74U.SK_AK74U")
@@ -189,8 +176,6 @@
 			);
 		}
 
-		// 이동된 AKS74U 패키지의 FPS 전용 액션을 기본값으로 연결한다.
-		// BP에서 개별 자산을 지정하면 그 값을 우선 사용한다.
 		auto loadFirstPersonAnimation = [](UAnimSequenceBase*& target, const TCHAR* path)
 		{
 			if (!target)
@@ -214,17 +199,13 @@
 		loadFirstPersonAnimation(firstPersonAimedEmptyReloadAnimation,
 			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Reload_Empty_Aimed.A_FP_AKS74U_Reload_Empty_Aimed"));
 
-		// FPS/TPS가 같은 무기 자산을 사용하되 렌더링 컴포넌트는 서로 분리한다.
 		if (weaponMesh && firstPersonWeaponMesh)
 		{
 			firstPersonWeaponMesh->SetSkeletalMeshAsset(weaponMesh->GetSkeletalMeshAsset());
 		}
 
-		// BP에서 Anim Class를 빠뜨렸더라도 전신이 사용하는 AnimBP를 자동으로 공유한다.
-		// 각 컴포넌트는 별도의 AnimInstance를 가지므로 FPS 팔 몽타주도 독립 재생할 수 있다.
 		if (firstPersonArmsMesh && firstPersonArmsMesh->GetSkeletalMeshAsset())
 		{
-			// BP에 남아 있는 초기 컴포넌트 Transform과 무관하게 FPS 기준값을 적용한다.
 			firstPersonArmsMesh->SetRelativeLocation(firstPersonArmsLocation);
 			firstPersonArmsMesh->SetRelativeRotation(firstPersonArmsRotation);
 			firstPersonArmsMesh->SetRelativeScale3D(FVector(firstPersonArmsScale));
@@ -246,7 +227,6 @@
 		}
 		else
 		{
-			// 전용 팔 자산이 지정되기 전에도 FPS 총은 사용할 수 있다.
 			firstPersonWeaponMesh->AttachToComponent(
 				firstPersonCamera,
 				FAttachmentTransformRules::KeepRelativeTransform
@@ -312,8 +292,6 @@
 			const FTransform headWorldTransform =
 				GetMesh()->GetSocketTransform(firstPersonViewBoneName, RTS_World);
 
-			// 카메라 오프셋은 head 회전이 아니라 캐릭터의 수직인 로컬 축으로 적용한다.
-			// 그래야 위/아래 조준 시 카메라가 몸 안쪽으로 원을 그리며 들어가지 않는다.
 			const FVector cameraWorldLocation =
 				headWorldTransform.GetLocation()
 				+ GetActorQuat().RotateVector(firstPersonEyeOffset);
@@ -323,7 +301,6 @@
 		}
 		else
 		{
-			// 머리 본을 찾지 못했거나 추적을 끈 경우 캡슐 기준 높이를 사용한다.
 			FVector firstPersonRootLocation = firstPersonCameraRoot->GetRelativeLocation();
 			firstPersonRootLocation.X = firstPersonEyeOffset.X;
 			firstPersonRootLocation.Y = firstPersonEyeOffset.Y;
@@ -331,8 +308,6 @@
 			firstPersonCameraRoot->SetRelativeLocation(firstPersonRootLocation);
 		}
 
-		// 일반 FPS ADS는 카메라를 총에 붙이지 않는다. 고정된 FPS 카메라를 기준으로
-		// 팔/총 전체를 이동 및 회전시켜 SightSocket의 위치와 전방축을 화면 중앙에 맞춘다.
 		if (isFirstPerson && firstPersonArmsMesh && firstPersonWeaponMesh)
 		{
 			FVector targetArmsLocation = firstPersonArmsLocation;
@@ -358,8 +333,6 @@
 				}
 				else
 				{
-					// 소켓 축 대신 후방-전방 가늠쇠 두 점으로 총열 방향을 계산한다.
-					// FrontSightSocket이 있으면 두 점을 카메라 전방축에 정확히 맞춘다.
 					if (firstPersonWeaponMesh->DoesSocketExist(adsFrontSightSocketName))
 					{
 						const FTransform armsWorldTransform =
@@ -398,7 +371,6 @@
 					}
 					else
 					{
-					// FrontSightSocket이 없을 때는 위치와 수동 회전만 사용하는 대체 방식.
 					const FVector sightLocationInCameraSpace =
 						firstPersonCamera->GetComponentTransform().InverseTransformPosition(
 							firstPersonWeaponMesh->GetSocketLocation(adsSightSocketName)
@@ -407,9 +379,6 @@
 					targetArmsLocation =
 						firstPersonArmsMesh->GetRelativeLocation()
 						+ (adsSightViewOffset - sightLocationInCameraSpace);
-					// 팔 메시에는 기본 -90도 회전이 있으므로 Euler 값을 단순히 더하면
-					// 카메라 Yaw가 화면상 Roll처럼 보인다. 카메라(부모) 공간 회전을
-					// 기본 팔 회전 앞에 Quaternion으로 합성해 축을 올바르게 유지한다.
 					targetArmsRotation = FRotator(
 						adsSightViewRotation.Quaternion()
 						* firstPersonArmsRotation.Quaternion()
@@ -603,8 +572,6 @@
 
 	void APlayerCharacter::StartSpecialSkill()
 	{
-		// G 입력을 누르고 있는 동안에는 수류탄 시전 가능 여부와 관계없이
-		// 총기 발사 입력을 차단한다. 키를 떼면 ReleaseSpecialSkill에서 해제된다.
 		isGrenadeKeyHeld = true;
 
 		// 이미 시전 중이거나 손에 수류탄을 들고 있으면 다시 시작하지 않는다.
@@ -754,7 +721,6 @@
 	{
 		isFirstPerson = !isFirstPerson;
 
-		// 카메라만 바꾼다. 이동/조준/애니메이션 상태는 그대로 유지한다.
 		firstPersonCamera->SetActive(isFirstPerson);
 		thirdPersonCamera->SetActive(!isFirstPerson);
 		adsCamera->SetActive(false);
@@ -765,8 +731,6 @@
 
 	void APlayerCharacter::UpdateCameraPresentation()
 	{
-		// FPS에서는 전신과 TPS 총을 로컬 플레이어에게 숨기고 전용 팔/총만 보인다.
-		// TPS에서는 반대로 전신과 기존 총만 보인다.
 		GetMesh()->SetOwnerNoSee(isFirstPerson);
 		weaponMesh->SetOwnerNoSee(isFirstPerson);
 
@@ -792,14 +756,11 @@
 
 	void APlayerCharacter::Attack()
 	{
-		// 수류탄 키를 누르는 동안 좌클릭이 들어와도 총을 발사하지 않는다.
 		if (isGrenadeKeyHeld)
 		{
 			return;
 		}
 
-		// Sprint 중 공격 입력이 들어오면 먼저 걷기 상태로 전환한 다음 발사한다.
-		// 따라서 달리기 모션과 발사 모션이 동시에 재생되지 않는다.
 		if (isRunning)
 		{
 			StopRun();
@@ -867,9 +828,6 @@
 
 	bool APlayerCharacter::GetLeftHandIKTransform(FTransform& outTransform) const
 	{
-		// AKS74U FPS 전용 애니메이션은 양손 동작이 이미 제작되어 있다.
-		// 여기에 FABRIK을 다시 적용하면 Aim/Fire/Reload 전환마다 왼손 제어권이
-		// 바뀌며 포즈가 튀므로, IK는 테스트용 TPS 전신 메시에서만 사용한다.
 		if (isFirstPerson)
 		{
 			return false;
@@ -877,7 +835,6 @@
 
 		outTransform = FTransform::Identity;
 
-		// 재장전 애니메이션이 왼손을 탄창으로 이동시킬 수 있도록 IK를 잠시 해제한다.
 		if (weaponComponent && weaponComponent->isReloading)
 		{
 			return false;
@@ -1022,7 +979,6 @@
 
 		isAiming = true;
 
-		// FPS에서는 우클릭 즉시 ADS. TPS는 테스트용 숄더 뷰를 유지한다.
 		if (isFirstPerson)
 		{
 			EnterAdsAim();
@@ -1064,8 +1020,6 @@
 		isAiming = true;
 		isAdsAiming = true;
 
-		// 일반 FPS처럼 카메라는 고정한다. Tick에서 팔/총을 보간해 AKS74U의
-		// SightSocket이 카메라 중앙으로 오도록 이동한다.
 		const bool canUseWeaponSight =
 			isFirstPerson
 			&& firstPersonWeaponMesh
