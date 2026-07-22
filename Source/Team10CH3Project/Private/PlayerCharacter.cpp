@@ -31,7 +31,7 @@
 		GetCharacterMovement()->bOrientRotationToMovement = false;
 
 		weaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-		weaponMesh->SetupAttachment(GetMesh(),TEXT("WeaponSocket"));
+		weaponMesh->SetupAttachment(GetMesh(),TEXT("HandGrip_R"));
 		weaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		weaponMesh->SetGenerateOverlapEvents(false);
 
@@ -714,7 +714,7 @@
 			GetAttackView(viewLocation, viewDirection);
 
 			FVector throwLocation =
-				GetMesh()->GetSocketLocation(TEXT("GrenadeSocket"));
+				GetMesh()->GetSocketLocation(TEXT("HandGrip_R"));
 
 			battleSystem->RequestSkillAttackByView(
 				this,
