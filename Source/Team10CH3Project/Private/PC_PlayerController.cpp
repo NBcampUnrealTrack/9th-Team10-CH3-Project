@@ -79,11 +79,6 @@ void APC_PlayerController::SetupInputComponent()
 
 	if (!enhancedInputComponent)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("PC_PlayerController: EnhancedInputComponent를 찾을 수 없습니다.")
-		);
 		return;
 	}
 
@@ -367,8 +362,6 @@ void APC_PlayerController::OnReturnButtonClicked()
 
 void APC_PlayerController::OnGoToHomeButtonClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("OnGoToHomeButtonClicked"));
-	
 	if (optionWidget)
 	{
 		optionWidget->RemoveFromParent();

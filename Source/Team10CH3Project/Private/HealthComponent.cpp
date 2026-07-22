@@ -15,7 +15,7 @@ void UHealthComponent::BeginPlay()
 void UHealthComponent::TakeDamage(float damageAmount, AActor* attackerActor, FVector hitLocation)
 {
 
-	if (isDead)
+	if (isDead || damageAmount <= 0.0f)
 	{
 		return;
 	}
@@ -30,24 +30,10 @@ void UHealthComponent::TakeDamage(float damageAmount, AActor* attackerActor, FVe
 		attackDirection.Normalize();
 	}
 
+	currentHealth = FMath::Clamp(currentHealth - damageAmount, 0.0f, maxHealth);
+
+	// Broadcast after updating health so UI and hit reactions read the new value.
 	onDamaged.Broadcast(damageAmount, attackerActor, hitLocation, attackDirection);
-
-	currentHealth -= damageAmount;
-
-	UE_LOG(
-		LogTemp,
-		Warning,
-		TEXT("Damage: %f / CurrentHealth: %f / DamagedBy: %s / HitLocation: %s"),
-		damageAmount,
-		currentHealth,
-		attackerActor ? *attackerActor->GetName() : TEXT("None"),
-		*hitLocation.ToString()
-	);
-
-	if (currentHealth < 0.0f)
-	{
-		currentHealth = 0.0f;
-	}
 	
 	if (currentHealth <= 0.0f)
 	{

@@ -188,6 +188,13 @@ protected:
 	ABattleSystem* battleSystem = nullptr;
 
 	UFUNCTION()
+	void HandleDamaged(
+		float damageAmount,
+		AActor* attackerActor,
+		FVector hitLocation,
+		FVector attackDirection);
+
+	UFUNCTION()
 	void HandleDeath(AActor* deadActor);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")

@@ -51,8 +51,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Detection")
 	// float은 소수점을 가질 수 있는 숫자 타입이다. 뒤에 붙은 f는 "이 숫자는 float이다"라는 표시(리터럴 접미사).
 	// sightRadius는 "이 적이 플레이어를 감지할 수 있는 최대 거리"를 의미하며, 단위는 언리얼 기본 단위인 cm다.
-	// 즉 1200.f는 12미터를 뜻한다.
-	float sightRadius = 1200.f;
+	// 즉 3000.f는 30미터를 뜻한다. 사거리(attackRange)와 동일하게 맞춰서 "보이면 곧 사격 가능"하게 했다.
+	float sightRadius = 3000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Detection")
 	// sightHalfAngleDegrees는 "적이 정면을 바라볼 때, 좌우로 몇 도까지 볼 수 있는지"의 절반값이다.
@@ -61,7 +61,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	// attackRange는 "이 적이 공격을 실행할 수 있는 최대 거리"다. 대상이 이 거리보다 멀면 공격 대신 추적한다.
-	float attackRange = 200.f;
+	// 3000.f는 30미터. 시야(sightRadius)와 동일하게 맞췄다. 라인 트레이스 공격이라 원거리 사격을 한다.
+	float attackRange = 3000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	// attackDamage는 공격 한 번에 상대방 체력을 얼마나 깎을지 정하는 값이다.
@@ -71,6 +72,57 @@ public:
 	// attackCooldown은 공격 한 번을 실행한 뒤, 다시 공격할 수 있게 되기까지 기다려야 하는 시간(초)이다.
 	// 이게 없으면 사거리 안에 있는 동안 매 순간 계속 공격해버리는 문제가 생긴다.
 	float attackCooldown = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat", meta = (ClampMin = "0.0"))
+	float damageAlertDuration = 5.0f;
+
+	bool IsDamageAlertActive() const;
+	AActor* GetDamageAlertTarget() const;
+	void SetAlertMovementMode(bool isAlerted);
+
+	UFUNCTION(BlueprintPure, Category = "AI|Animation")
+	FRotator GetUpperBodyAimOffset() const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
+	// killScoreValue는 이 적이 죽었을 때 AFPSGameMode::AddKillScore()에 넘겨줄 점수량이다.
+	// 적 종류(일반/보스 등)마다 다른 점수를 주고 싶을 때 이 값만 다르게 설정하면 된다.
+	int killScoreValue = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	// attackAccuracy는 라인 트레이스 공격의 명중 정확도다. 1이면 항상 정확히 조준하고,
+	// 0에 가까울수록 조준 방향에 무작위 오차가 커져서 자주 빗나간다.
+	float attackAccuracy = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
+	// attackMaxSpreadDegrees는 attackAccuracy가 0일 때 조준 방향이 흔들릴 수 있는 최대 각도(원뿔의 반각)다.
+	float attackMaxSpreadDegrees = 12.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
+	float patrolRotationSpeed = 360.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
+	float alertRotationSpeed = 540.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
+	float patrolMoveSpeed = 200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0", DisplayName = "Alert Move Speed (0 = Existing Speed)"))
+	float alertMoveSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Animation", meta = (ClampMin = "0.0", ClampMax = "90.0"))
+	float maxUpperBodyAimYaw = 70.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Animation", meta = (ClampMin = "0.0", ClampMax = "90.0"))
+	float maxUpperBodyAimPitch = 60.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Debug", meta = (ClampMin = "0.0"))
+	float attackTraceDrawDuration = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement")
+	// avoidanceRadius는 RVO 회피가 "이 반경 안에 있는 다른 회피 대상만 신경 쓴다"고 판단하는 기준 거리다.
+	// attackRange(200)를 그대로 재사용했더니 너무 가까워져야 회피를 시작해서 반응이 늦었다.
+	// 회피는 미리 반응할 시간이 필요해서 캡슐 크기보다 훨씬 큰 값을 준다.
+	float avoidanceRadius = 500.f;
 
 	// VisibleAnywhere: 에디터에서 이 값을 "볼 수는" 있지만 직접 수정은 못 하게 막는다.
 	// (컴포넌트는 보통 코드에서 직접 만들어서 연결하기 때문에, 에디터에서 손대면 오히려 꼬일 수 있어서 이렇게 설정한다.)
@@ -89,6 +141,14 @@ protected:
 	// BeginPlay()는 이 액터가 실제로 게임 월드에 존재하며 플레이가 시작되는 순간, 언리얼이 자동으로 호출해주는 함수다.
 	virtual void BeginPlay() override;
 
+	UFUNCTION()
+	void HandleDamaged(
+		float damageAmount,
+		AActor* attackerActor,
+		FVector hitLocation,
+		FVector attackDirection
+	);
+
 	// UFUNCTION()은 이 함수를 리플렉션 시스템에 등록한다.
 	// 델리게이트(이벤트)에 함수를 연결(바인딩)하려면, 그 함수가 반드시 UFUNCTION()으로 등록돼 있어야 한다.
 	UFUNCTION()
@@ -97,4 +157,12 @@ protected:
 	// 알려주기 위해 넘겨주는 값이다. 델리게이트에 바인딩하는 함수는 델리게이트가 정의한 파라미터와
 	// 정확히 똑같은 형태여야 한다.
 	void HandleDeath(AActor* deadActor);
+
+private:
+	UPROPERTY(Transient)
+	AActor* damageAlertTarget = nullptr;
+
+	float damageAlertEndTime = 0.0f;
+	float resolvedAlertMoveSpeed = 0.0f;
+	bool isUsingAlertMovement = false;
 };

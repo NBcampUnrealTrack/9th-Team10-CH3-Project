@@ -105,6 +105,7 @@
 		GetCharacterMovement()->SetCrouchedHalfHeight(44.0f);
 
 		healthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 		weaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("WeaponComponent"));
 
 		battleSystemClass = ABattleSystem::StaticClass();
@@ -114,6 +115,10 @@
 	void APlayerCharacter::BeginPlay()
 	{
 		Super::BeginPlay();
+
+		// AI hitscan attacks use the Visibility channel. Keep the final
+		// Blueprint instance damageable even if its Pawn profile ignores it.
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 		firstPersonCameraRoot->AttachToComponent(
 			GetCapsuleComponent(),
@@ -169,15 +174,6 @@
 				firstPersonWeaponMesh->SetSkeletalMeshAsset(sharedAks74uMesh);
 			}
 		}
-		else
-		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT("Failed to load shared AKS74U weapon mesh")
-			);
-		}
-
 		auto loadFirstPersonAnimation = [](UAnimSequenceBase*& target, const TCHAR* path)
 		{
 			if (!target)
@@ -256,6 +252,7 @@
 
 		if (healthComponent)
 		{
+			healthComponent->onDamaged.AddDynamic(this, &APlayerCharacter::HandleDamaged);
 			healthComponent->onDeath.AddDynamic(this, &APlayerCharacter::HandleDeath);
 		}
 
@@ -625,7 +622,6 @@
 			false
 		);
 
-		UE_LOG(LogTemp, Warning, TEXT("Grenade Cast Start"));
 	}
 
 	void APlayerCharacter::ReleaseSpecialSkill()
@@ -645,11 +641,6 @@
 		{
 			shouldThrowAfterCast = true;
 
-			UE_LOG(
-				LogTemp,
-				Warning,
-				TEXT("Grenade key released during cast - throw after cast")
-			);
 		}
 	}
 
@@ -662,8 +653,6 @@
 
 		isCastingGrenade = false;
 		isGrenadeReady = true;
-
-		UE_LOG(LogTemp, Warning, TEXT("Grenade Ready"));
 
 		// 시전 도중 G키를 뗐거나 현재 키를 누르고 있지 않으면
 		// 준비가 끝나는 즉시 던진다.
@@ -706,8 +695,6 @@
 			onSpecialSkillThrown.Broadcast();
 		}
 
-		UE_LOG(LogTemp, Warning, TEXT("Grenade Throw"));
-
 		ResetGrenadeState();
 	}
 
@@ -722,13 +709,33 @@
 	}
 
 
+	void APlayerCharacter::HandleDamaged(
+		float damageAmount,
+		AActor* attackerActor,
+		FVector hitLocation,
+		FVector attackDirection)
+	{
+		if (!healthComponent)
+		{
+			return;
+		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Player damaged: Damage=%.1f | Health=%.1f / %.1f | Attacker=%s"),
+			damageAmount,
+			healthComponent->currentHealth,
+			healthComponent->maxHealth,
+			IsValid(attackerActor) ? *attackerActor->GetName() : TEXT("None"));
+	}
+
 	void APlayerCharacter::HandleDeath(AActor* deadActor)
 	{
 		isRunning = false;
 
 		GetCharacterMovement()->DisableMovement();
 
-		UE_LOG(LogTemp, Warning, TEXT("Player Dead"));
 	}
 
 	//z키 누를시 카메라 시점 변경
@@ -754,19 +761,6 @@
 		firstPersonArmsMesh->SetHiddenInGame(!isFirstPerson, true);
 		firstPersonWeaponMesh->SetHiddenInGame(!isFirstPerson, true);
 
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("FPS presentation: FirstPerson=%s ArmsMesh=%s ArmsVisible=%s ArmsAnim=%s"),
-			isFirstPerson ? TEXT("true") : TEXT("false"),
-			firstPersonArmsMesh->GetSkeletalMeshAsset()
-				? *firstPersonArmsMesh->GetSkeletalMeshAsset()->GetName()
-				: TEXT("None"),
-			firstPersonArmsMesh->IsVisible() ? TEXT("true") : TEXT("false"),
-			firstPersonArmsMesh->GetAnimClass()
-				? *firstPersonArmsMesh->GetAnimClass()->GetName()
-				: TEXT("None")
-		);
 	}
 
 	void APlayerCharacter::Attack()
@@ -808,8 +802,19 @@
 		USkeletalMeshComponent* activeWeaponMesh =
 			isFirstPerson ? firstPersonWeaponMesh : weaponMesh;
 
-		FVector fireLocation =
-			activeWeaponMesh->GetSocketLocation(TEXT("Muzzle"));
+		const FName muzzleSocketName = TEXT("Muzzle");
+		FVector fireLocation = viewLocation;
+
+		if (activeWeaponMesh && activeWeaponMesh->DoesSocketExist(muzzleSocketName))
+		{
+			fireLocation = activeWeaponMesh->GetSocketLocation(muzzleSocketName);
+		}
+		else
+		{
+			// SK_AK74U currently has no Muzzle socket. Camera origin keeps the
+			// hitscan attack functional until a socket is added to the asset.
+			fireLocation = viewLocation;
+		}
 
 		weaponComponent->Attack(
 			this,
@@ -1027,7 +1032,6 @@
 		isRunning = false;
 		GetCharacterMovement()->MaxWalkSpeed = aimingMoveSpeed;
 
-		UE_LOG(LogTemp, Warning, TEXT("Shoulder Aim"));
 	}
 
 	void APlayerCharacter::EnterAdsAim()
@@ -1035,29 +1039,12 @@
 		isAiming = true;
 		isAdsAiming = true;
 
-		const bool canUseWeaponSight =
-			isFirstPerson
-			&& firstPersonWeaponMesh
-			&& firstPersonWeaponMesh->DoesSocketExist(adsSightSocketName);
-
 		thirdPersonCamera->SetActive(!isFirstPerson);
 		firstPersonCamera->SetActive(isFirstPerson);
 		adsCamera->SetActive(false);
 
-		if (!canUseWeaponSight)
-		{
-			UE_LOG(
-				LogTemp,
-				Warning,
-				TEXT("ADS fallback: FirstPersonWeapon has no socket named %s"),
-				*adsSightSocketName.ToString()
-			);
-		}
-
 		isRunning = false;
 		GetCharacterMovement()->MaxWalkSpeed = aimingMoveSpeed;
-
-		UE_LOG(LogTemp, Warning, TEXT("ADS Aim"));
 	}
 
 	void APlayerCharacter::ExitAim()
@@ -1071,7 +1058,6 @@
 
 		GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
 
-		UE_LOG(LogTemp, Warning, TEXT("Aim End"));
 	}
 
 	void APlayerCharacter::SetNormalFOV(float NewFOV)

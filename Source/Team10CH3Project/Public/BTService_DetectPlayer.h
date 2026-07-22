@@ -36,6 +36,15 @@ public:
 	// 실제 값(문자열 이름)은 BT 에셋을 만들 때 에디터에서 드롭다운으로 골라서 지정한다.
 	FBlackboardKeySelector targetActorKey;
 
+	// 감지되는 동안(매 틱) 플레이어의 현재 위치로 계속 갱신되는 Vector 키.
+	// 놓치는 순간부터 갱신을 멈추기 때문에, 그 값이 자연스럽게 "마지막으로 본 위치"로 남는다.
+	UPROPERTY(EditAnywhere, Category = "Blackboard")
+	FBlackboardKeySelector lastKnownLocationKey;
+
+	// Reset when the target is lost so a newly detected player must be aimed at again.
+	UPROPERTY(EditAnywhere, Category = "Blackboard")
+	FBlackboardKeySelector combatReadyKey;
+
 protected:
 	// virtual/override: 부모 클래스(UBTService)의 TickNode 함수를 재정의한다.
 	// TickNode는 이 서비스가 활성화된 상태에서, 정해진 시간 간격(Interval)마다 자동으로 호출되는 함수다.
