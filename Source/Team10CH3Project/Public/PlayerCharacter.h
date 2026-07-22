@@ -14,7 +14,9 @@
 class UHealthComponent;
 class UWeaponComponent;
 class ABattleSystem;
+class APC_PlayerController;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpecialSkillThrown);
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -194,6 +196,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
 	bool shouldThrowAfterCast = false;
 
+	UPROPERTY()
+	APC_PlayerController* PC;
+	
 	FTimerHandle grenadeCastTimerHandle;
 
 	void FinishGrenadeCast();
@@ -204,5 +209,12 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
+	
+	//Joonhyeong
+	UFUNCTION(BlueprintCallable, Category = "FOV")
+	void SetNormalFOV(float NewFOV);
+	UFUNCTION(BlueprintCallable, Category = "FOV")
+	float GetNormalFOV();
+	UPROPERTY(BlueprintAssignable, Category = "Skill")
+	FOnSpecialSkillThrown onSpecialSkillThrown;
 };

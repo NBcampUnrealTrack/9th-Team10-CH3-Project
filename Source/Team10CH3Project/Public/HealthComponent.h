@@ -33,7 +33,7 @@ public:
 	float maxHealth = 100.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
-	float currentHealth = 0.0f;
+	float currentHealth = 0.0f;                                           
 
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnDeath onDeath;
