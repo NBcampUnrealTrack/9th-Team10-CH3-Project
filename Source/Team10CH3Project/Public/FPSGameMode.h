@@ -21,7 +21,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameCleared);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameOver);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameStarted);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGamePaused);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameResumed);
 
@@ -93,11 +92,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GameOver();
 
-	void UpdateGameTimer();
-
 	UFUNCTION(BlueprintCallable)
 	void PauseGame();
 
 	UFUNCTION(BlueprintCallable)
 	void ResumeGame();
+
+	void UpdateGameTimer();
 };

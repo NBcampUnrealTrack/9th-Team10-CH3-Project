@@ -36,17 +36,11 @@ void APC_PlayerController::BeginPlay()
 		}
 	}
 
-	/*if (IsLocalController() && playerHudClass)
+	if (!IsLocalController())
 	{
-		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
+		return;
+	}
 
-		if (playerHudWidget)
-		{
-			playerHudWidget->AddToViewport();
-		}
-	}*/
-	
-	//Joonhyeong
 	if (playerHudClass)
 	{
 		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
@@ -63,14 +57,16 @@ void APC_PlayerController::BeginPlay()
 	{
 		optionWidget = CreateWidget<UUserWidget>(this, optionWidgetClass);
 	}
-	
+
 	if (startWidget)
 	{
 		startWidget->AddToViewport();
-		
 		bShowMouseCursor = true;
-		FInputModeUIOnly InputMode;
-		SetInputMode(InputMode);
+		SetInputMode(FInputModeUIOnly());
+	}
+	else if (playerHudWidget)
+	{
+		playerHudWidget->AddToViewport();
 	}
 }
 
@@ -147,6 +143,7 @@ void APC_PlayerController::SetupInputComponent()
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Completed, this, &APC_PlayerController::StopAim);
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Canceled, this, &APC_PlayerController::StopAim);
 	}
+
 	if (optionAction)
 	{
 		enhancedInputComponent->BindAction(optionAction, ETriggerEvent::Started, this, &APC_PlayerController::OptionMenu);
@@ -290,25 +287,24 @@ void APC_PlayerController::OnStartButtonClicked()
 	{
 		startWidget->RemoveFromParent();
 	}
-	
-	if (playerHudWidget)
+
+	if (playerHudWidget && !playerHudWidget->IsInViewport())
 	{
 		playerHudWidget->AddToViewport();
-		
-		bShowMouseCursor = false;
-		FInputModeGameOnly InputMode;
-		SetInputMode(InputMode);
-	
-		AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-		if (gameMode)
-		{
-			gameMode->StartGame();
-		}
+	}
+
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
+
+	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		gameMode->StartGame();
 	}
 }
 
 void APC_PlayerController::OnEndButtonClicked()
 {
+
 	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
 	if (gameMode)
 	{
@@ -324,60 +320,47 @@ void APC_PlayerController::OnEndButtonClicked()
 
 void APC_PlayerController::OptionMenu()
 {
-	UE_LOG(LogTemp, Warning, TEXT("OptionMenu"));
-	
+	if (!optionWidget)
+	{
+		return;
+	}
+
+	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
 	if (optionWidget->IsInViewport())
 	{
 		optionWidget->RemoveFromParent();
-		
 		bShowMouseCursor = false;
-		FInputModeGameOnly InputMode;
-		SetInputMode(InputMode);
-		
-		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-		if (GameMode)
+		SetInputMode(FInputModeGameOnly());
+		if (gameMode)
 		{
-			GameMode->ResumeGame();
+			gameMode->ResumeGame();
 		}
-		
 		return;
 	}
-	
-	if (optionWidget && playerHudWidget->IsInViewport())
+
+	if (playerHudWidget && playerHudWidget->IsInViewport())
 	{
 		optionWidget->AddToViewport(10);
-		
 		bShowMouseCursor = true;
-		FInputModeGameAndUI InputMode;
-		SetInputMode(InputMode);
-		
-		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-		if (GameMode)
+		SetInputMode(FInputModeGameAndUI());
+		if (gameMode)
 		{
-			GameMode->PauseGame();
+			gameMode->PauseGame();
 		}
-		
-		return;
 	}
-	
 }
 
 void APC_PlayerController::OnReturnButtonClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("OnReturnButtonClicked"));
-	
-	if (optionWidget->IsInViewport())
+	if (optionWidget && optionWidget->IsInViewport())
 	{
 		optionWidget->RemoveFromParent();
-		
 		bShowMouseCursor = false;
-		FInputModeGameOnly InputMode;
-		SetInputMode(InputMode);
-		
-		AFPSGameMode* GameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-		if (GameMode)
+		SetInputMode(FInputModeGameOnly());
+
+		if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
 		{
-			GameMode->ResumeGame();
+			gameMode->ResumeGame();
 		}
 	}
 }

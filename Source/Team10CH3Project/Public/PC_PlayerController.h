@@ -66,20 +66,19 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	UUserWidget* playerHudWidget = nullptr;
-	
-	//Joonhyeong
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> startWidgetClass;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
-	UUserWidget* startWidget = nullptr;	
-	
+	UUserWidget* startWidget = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> endWidgetClass;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	UUserWidget* endWidget = nullptr;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> optionWidgetClass;
 
@@ -91,16 +90,15 @@ protected:
 	
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnStartButtonClicked();
-	
+
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnEndButtonClicked();
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnReturnButtonClicked();
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnGoToHomeButtonClicked();
-	
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;
@@ -129,7 +127,5 @@ private:
 
 	void StartAim();
 	void StopAim();
-	
-	//Joonhyeong
 	void OptionMenu();
 };

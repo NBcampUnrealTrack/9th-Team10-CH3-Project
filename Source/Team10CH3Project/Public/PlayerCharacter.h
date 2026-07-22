@@ -15,6 +15,8 @@ class UHealthComponent;
 class UWeaponComponent;
 class ABattleSystem;
 class APC_PlayerController;
+class USceneComponent;
+class UAnimSequenceBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpecialSkillThrown);
 
@@ -71,15 +73,18 @@ public:
 		FVector& outViewDirection
 	) const;
 
+	UFUNCTION(BlueprintPure, Category = "Animation|IK")
+	bool GetLeftHandIKTransform(FTransform& outTransform) const;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float walkSpeed = 500.0f;
+	float walkSpeed = 300.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float runSpeed = 1300.0f;
+	float runSpeed = 650.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool isRunning = false;
@@ -93,6 +98,87 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	USkeletalMeshComponent* weaponMesh;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
+	USkeletalMeshComponent* firstPersonArmsMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
+	USkeletalMeshComponent* firstPersonWeaponMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
+	FVector firstPersonArmsLocation = FVector(-10.0f, 0.0f, -150.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
+	FRotator firstPersonArmsRotation = FRotator(0.0f, -90.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person", meta = (ClampMin = "0.1"))
+	float firstPersonArmsScale = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "First Person")
+	FName firstPersonWeaponSocketName = TEXT("WeaponSocket");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
+	FVector firstPersonWeaponFallbackLocation = FVector(45.0f, 18.0f, -18.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
+	FRotator firstPersonWeaponFallbackRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|IK")
+	FName leftHandIKSocketName = TEXT("LeftHandIK");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|IK")
+	FName rightHandBoneName = TEXT("hand_r");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Weapon")
+	UAnimSequenceBase* equipAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Weapon")
+	UAnimSequenceBase* fireAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Weapon")
+	UAnimSequenceBase* reloadAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonEquipAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonFireAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonAimedFireAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonReloadAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonAimedReloadAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonEmptyReloadAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
+	UAnimSequenceBase* firstPersonAimedEmptyReloadAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Skill")
+	UAnimSequenceBase* grenadeReadyAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Skill")
+	UAnimSequenceBase* grenadeThrowAnimation = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+	FName upperBodySlotName = TEXT("UpperBody");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.0"))
+	float animationBlendInTime = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.0"))
+	float animationBlendOutTime = 0.15f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
+	float firstPersonFireBlendInTime = 0.025f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
+	float firstPersonFireBlendOutTime = 0.06f;
+
 	// 실제 공격 판정(라인 트레이스, 데미지, 헤드샷, 범위 공격)을 담당하는 액터.
 	// AActor 파생 클래스라 컴포넌트로 붙일 수 없어서, BeginPlay에서 스폰해서 참조만 들고 있는다.
 	UPROPERTY(EditDefaultsOnly, Category = "Battle")
@@ -105,7 +191,28 @@ protected:
 	void HandleDeath(AActor* deadActor);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	USceneComponent* firstPersonCameraRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* firstPersonCamera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
+	bool followHeadPosition = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
+	FName firstPersonViewBoneName = TEXT("head");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson")
+	FVector firstPersonEyeOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "-89.0", ClampMax = "0.0"))
+	float firstPersonMinViewPitch = -60.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "0.0", ClampMax = "89.0"))
+	float firstPersonMaxViewPitch = 60.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "0.0"))
+	float headCameraInterpSpeed = 20.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* springArm;
@@ -114,10 +221,28 @@ protected:
 	UCameraComponent* thirdPersonCamera;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Camera")
-	bool isFirstPerson;
+	bool isFirstPerson = true;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* adsCamera;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|ADS")
+	FName adsSightSocketName = TEXT("SightSocket");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|ADS")
+	FName adsFrontSightSocketName = TEXT("FrontSightSocket");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
+	FVector adsSightViewOffset = FVector(10.0f, 0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
+	FRotator adsSightViewRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS")
+	bool alignAdsSightRotation = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|ADS", meta = (ClampMin = "0.0"))
+	float adsWeaponInterpSpeed = 12.0f;
 
 	// 앉기/일어서기 시 springArm이 바로 순간이동하지 않고 Tick에서 서서히 목표 높이로 보간되도록 함
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Camera")
@@ -143,6 +268,24 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Aim")
 	bool isAdsAiming = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|Aim")
+	float aimPitch = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|Aim")
+	float aimYaw = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Aim", meta = (ClampMin = "0.0"))
+	float aimRotationInterpSpeed = 15.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Aim")
+	float minAimPitch = -80.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Aim")
+	float maxAimPitch = 80.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Aim")
+	float maxAimYaw = 90.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aim")
 	float doubleClickTime = 1.0f;
@@ -204,6 +347,14 @@ protected:
 	void FinishGrenadeCast();
 	void ThrowGrenade();
 	void ResetGrenadeState();
+	bool PlayUpperBodyAnimation(UAnimSequenceBase* animation, float playRate = 1.0f);
+	bool PlayFirstPersonUpperBodyAnimation(
+		UAnimSequenceBase* animation,
+		float playRate = 1.0f,
+		float blendInTime = -1.0f,
+		float blendOutTime = -1.0f
+	);
+	void UpdateCameraPresentation();
 	
 
 public:

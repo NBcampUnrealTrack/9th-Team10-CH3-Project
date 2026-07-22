@@ -16,7 +16,6 @@ void AFPSGameMode::StartGame()
 	score = 0;
 
 	remainingTime = timeLimit;
-
 	onScoreChanged.Broadcast(score, currentKillCount);
 	onTimeChanged.Broadcast(remainingTime);
 	onGameStarted.Broadcast();
@@ -89,9 +88,7 @@ void AFPSGameMode::PauseGame()
 	}
 
 	isGamePaused = true;
-
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
-
 	onGamePaused.Broadcast();
 }
 
@@ -103,7 +100,6 @@ void AFPSGameMode::ResumeGame()
 	}
 
 	isGamePaused = false;
-
 	GetWorldTimerManager().SetTimer(
 		gameTimerHandle,
 		this,
@@ -111,7 +107,6 @@ void AFPSGameMode::ResumeGame()
 		1.0f,
 		true
 	);
-
 	onGameResumed.Broadcast();
 }
 
