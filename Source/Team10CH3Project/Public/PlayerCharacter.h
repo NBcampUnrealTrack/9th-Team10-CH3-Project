@@ -81,10 +81,10 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float walkSpeed = 500.0f;
+	float walkSpeed = 300.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
-	float runSpeed = 1300.0f;
+	float runSpeed = 650.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool isRunning = false;
