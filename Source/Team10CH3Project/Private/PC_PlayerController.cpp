@@ -3,6 +3,7 @@
 #include "PC_PlayerController.h"
 
 #include "PlayerCharacter.h"
+#include "FPSGameMode.h"
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -29,14 +30,37 @@ void APC_PlayerController::BeginPlay()
 		}
 	}
 
-	if (IsLocalController() && playerHudClass)
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (playerHudClass)
 	{
 		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
+	}
+	if (startWidgetClass)
+	{
+		startWidget = CreateWidget<UUserWidget>(this, startWidgetClass);
+	}
+	if (endWidgetClass)
+	{
+		endWidget = CreateWidget<UUserWidget>(this, endWidgetClass);
+	}
+	if (optionWidgetClass)
+	{
+		optionWidget = CreateWidget<UUserWidget>(this, optionWidgetClass);
+	}
 
-		if (playerHudWidget)
-		{
-			playerHudWidget->AddToViewport();
-		}
+	if (startWidget)
+	{
+		startWidget->AddToViewport();
+		bShowMouseCursor = true;
+		SetInputMode(FInputModeUIOnly());
+	}
+	else if (playerHudWidget)
+	{
+		playerHudWidget->AddToViewport();
 	}
 }
 
@@ -112,6 +136,11 @@ void APC_PlayerController::SetupInputComponent()
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Started, this, &APC_PlayerController::StartAim);
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Completed, this, &APC_PlayerController::StopAim);
 		enhancedInputComponent->BindAction(aimAction, ETriggerEvent::Canceled, this, &APC_PlayerController::StopAim);
+	}
+
+	if (optionAction)
+	{
+		enhancedInputComponent->BindAction(optionAction, ETriggerEvent::Started, this, &APC_PlayerController::OptionMenu);
 	}
 }
 
@@ -243,5 +272,78 @@ void APC_PlayerController::StopAim()
 	if (APlayerCharacter* character = GetPlayerCharacter())
 	{
 		character->StopAim();
+	}
+}
+
+void APC_PlayerController::OnStartButtonClicked()
+{
+	if (startWidget)
+	{
+		startWidget->RemoveFromParent();
+	}
+
+	if (playerHudWidget && !playerHudWidget->IsInViewport())
+	{
+		playerHudWidget->AddToViewport();
+	}
+
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
+
+	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		gameMode->StartGame();
+	}
+}
+
+void APC_PlayerController::OnEndButtonClicked()
+{
+	// 종료 동작은 위젯/플랫폼 정책에 맞춰 블루프린트에서 확장한다.
+}
+
+void APC_PlayerController::OptionMenu()
+{
+	if (!optionWidget)
+	{
+		return;
+	}
+
+	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+	if (optionWidget->IsInViewport())
+	{
+		optionWidget->RemoveFromParent();
+		bShowMouseCursor = false;
+		SetInputMode(FInputModeGameOnly());
+		if (gameMode)
+		{
+			gameMode->ResumeGame();
+		}
+		return;
+	}
+
+	if (playerHudWidget && playerHudWidget->IsInViewport())
+	{
+		optionWidget->AddToViewport(10);
+		bShowMouseCursor = true;
+		SetInputMode(FInputModeGameAndUI());
+		if (gameMode)
+		{
+			gameMode->PauseGame();
+		}
+	}
+}
+
+void APC_PlayerController::OnReturnButtonClicked()
+{
+	if (optionWidget && optionWidget->IsInViewport())
+	{
+		optionWidget->RemoveFromParent();
+		bShowMouseCursor = false;
+		SetInputMode(FInputModeGameOnly());
+
+		if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+		{
+			gameMode->ResumeGame();
+		}
 	}
 }

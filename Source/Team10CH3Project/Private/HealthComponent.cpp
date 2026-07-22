@@ -34,6 +34,16 @@ void UHealthComponent::TakeDamage(float damageAmount, AActor* attackerActor, FVe
 
 	currentHealth -= damageAmount;
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Damage: %f / CurrentHealth: %f / DamagedBy: %s / HitLocation: %s"),
+		damageAmount,
+		currentHealth,
+		attackerActor ? *attackerActor->GetName() : TEXT("None"),
+		*hitLocation.ToString()
+	);
+
 	if (currentHealth < 0.0f)
 	{
 		currentHealth = 0.0f;
