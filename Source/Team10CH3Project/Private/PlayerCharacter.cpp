@@ -1373,7 +1373,6 @@
 
 		thirdPersonCamera->SetActive(!isFirstPerson);
 		firstPersonCamera->SetActive(isFirstPerson);
-		adsCamera->SetActive(false);
 
 		isRunning = false;
 		GetCharacterMovement()->MaxWalkSpeed = aimingMoveSpeed;

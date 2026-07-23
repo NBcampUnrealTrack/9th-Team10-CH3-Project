@@ -20,6 +20,11 @@ class UAnimSequenceBase;
 class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpecialSkillThrown);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnAdsAimingChanged,
+	bool,
+	bIsAdsAiming
+);
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
