@@ -7,6 +7,7 @@
 class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
+class UNiagaraSystem;
 class ABattleSystem;
 
 UCLASS()
@@ -38,6 +39,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade")
 	float damageRange = 500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade|Effects")
+	UNiagaraSystem* explosionEffect = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade|Effects")
+	FVector explosionEffectScale = FVector(1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade|Effects", meta = (ClampMin = "0.1"))
+	float explosionEffectDuration = 2.0f;
 
 	void InitGrenade(
 		ABattleSystem* inBattleSystem,

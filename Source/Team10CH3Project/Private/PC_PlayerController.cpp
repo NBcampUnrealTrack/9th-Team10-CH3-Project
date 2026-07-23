@@ -9,6 +9,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "InputAction.h"
+#include "InputCoreTypes.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -58,6 +59,11 @@ void APC_PlayerController::BeginPlay()
 		optionWidget = CreateWidget<UUserWidget>(this, optionWidgetClass);
 	}
 
+	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+	{
+		gameMode->onGameOver.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
+	}
+
 	if (startWidget)
 	{
 		startWidget->AddToViewport();
@@ -68,6 +74,37 @@ void APC_PlayerController::BeginPlay()
 	{
 		playerHudWidget->AddToViewport();
 	}
+}
+
+void APC_PlayerController::ShowGameOverWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (playerHudWidget)
+	{
+		playerHudWidget->RemoveFromParent();
+	}
+
+	if (optionWidget)
+	{
+		optionWidget->RemoveFromParent();
+	}
+
+	if (!endWidget && endWidgetClass)
+	{
+		endWidget = CreateWidget<UUserWidget>(this, endWidgetClass);
+	}
+
+	if (endWidget && !endWidget->IsInViewport())
+	{
+		endWidget->AddToViewport();
+	}
+
+	bShowMouseCursor = true;
+	SetInputMode(FInputModeUIOnly());
 }
 
 void APC_PlayerController::SetupInputComponent()
@@ -112,8 +149,17 @@ void APC_PlayerController::SetupInputComponent()
 
 	if (attackAction)
 	{
-		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, this, &APC_PlayerController::Attack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, this, &APC_PlayerController::StartAttack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Completed, this, &APC_PlayerController::StopAttack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Canceled, this, &APC_PlayerController::StopAttack);
 	}
+
+	InputComponent->BindKey(
+		EKeys::B,
+		IE_Pressed,
+		this,
+		&APC_PlayerController::ToggleFireMode
+	);
 
 	if (reloadAction)
 	{
@@ -220,11 +266,27 @@ void APC_PlayerController::StopCrouch()
 	}
 }
 
-void APC_PlayerController::Attack()
+void APC_PlayerController::StartAttack()
 {
 	if (APlayerCharacter* character = GetPlayerCharacter())
 	{
-		character->Attack();
+		character->StartAttack();
+	}
+}
+
+void APC_PlayerController::StopAttack()
+{
+	if (APlayerCharacter* character = GetPlayerCharacter())
+	{
+		character->StopAttack();
+	}
+}
+
+void APC_PlayerController::ToggleFireMode()
+{
+	if (APlayerCharacter* character = GetPlayerCharacter())
+	{
+		character->ToggleFireMode();
 	}
 }
 

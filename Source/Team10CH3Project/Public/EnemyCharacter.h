@@ -10,13 +10,13 @@ class TEAM10CH3PROJECT_API AEnemyCharacter : public ACharacter
 public:
 	AEnemyCharacter();
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Detection")
-	float sightRadius = 3000.f;
+	float sightRadius = 5000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Detection")
 	float sightHalfAngleDegrees = 60.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
-	float attackRange = 3000.f;
+	float attackRange = 4500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	float attackDamage = 10.f;
@@ -27,9 +27,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat", meta = (ClampMin = "0.0"))
 	float damageAlertDuration = 5.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat", meta = (ClampMin = "0.0"))
+	float damageAlertRadius = 1800.0f;
+
 	bool IsDamageAlertActive() const;
 	AActor* GetDamageAlertTarget() const;
 	void SetAlertMovementMode(bool isAlerted);
+	void ReceiveDamageAlert(AActor* attackerActor);
 
 	UFUNCTION(BlueprintPure, Category = "AI|Animation")
 	FRotator GetUpperBodyAimOffset() const;
@@ -38,7 +42,7 @@ public:
 	int killScoreValue = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float attackAccuracy = 0.8f;
+	float attackAccuracy = 0.9f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	float attackMaxSpreadDegrees = 12.f;
