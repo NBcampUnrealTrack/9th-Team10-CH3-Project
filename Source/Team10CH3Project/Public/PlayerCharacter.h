@@ -170,6 +170,30 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person", meta = (ClampMin = "0.1"))
 	float firstPersonArmsScale = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run")
+	FVector proceduralRunLocationOffset = FVector(0.0f, -2.0f, -9.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run")
+	FRotator proceduralRunRotationOffset = FRotator(-14.0f, 0.0f, -5.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run", meta = (ClampMin = "0.0"))
+	float proceduralRunHorizontalAmount = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run", meta = (ClampMin = "0.0"))
+	float proceduralRunVerticalAmount = 0.7f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run", meta = (ClampMin = "0.0"))
+	float proceduralRunRollAmount = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run", meta = (ClampMin = "0.1"))
+	float proceduralRunPeriod = 0.7f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person|Procedural Run", meta = (ClampMin = "0.0"))
+	float proceduralRunBlendSpeed = 9.0f;
+
+	float proceduralRunTime = 0.0f;
+	float proceduralRunAlpha = 0.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "First Person")
 	FName firstPersonWeaponSocketName = TEXT("WeaponSocket");
 

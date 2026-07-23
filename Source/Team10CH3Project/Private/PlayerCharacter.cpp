@@ -357,6 +357,49 @@
 
 			FVector targetArmsLocation = firstPersonArmsLocation;
 			FRotator targetArmsRotation = firstPersonArmsRotation;
+			const bool isReloading = weaponComponent && weaponComponent->isReloading;
+			const bool useProceduralRun =
+				isRunning
+				&& !isAdsAiming
+				&& !isReloading
+				&& !isFirstPersonFireAnimationPlaying
+				&& !isFirstPersonGrenadePresentationActive;
+
+			proceduralRunAlpha = FMath::FInterpTo(
+				proceduralRunAlpha,
+				useProceduralRun ? 1.0f : 0.0f,
+				DeltaTime,
+				proceduralRunBlendSpeed
+			);
+
+			if (useProceduralRun)
+			{
+				proceduralRunTime += DeltaTime;
+			}
+			else if (proceduralRunAlpha <= UE_KINDA_SMALL_NUMBER)
+			{
+				proceduralRunTime = 0.0f;
+			}
+
+			if (proceduralRunAlpha > UE_KINDA_SMALL_NUMBER)
+			{
+				const float runPhase =
+					(proceduralRunTime / FMath::Max(proceduralRunPeriod, 0.1f))
+					* UE_TWO_PI;
+				const float horizontalWave = FMath::Sin(runPhase);
+				const float verticalWave = FMath::Sin(runPhase * 2.0f);
+
+				targetArmsLocation += proceduralRunLocationOffset * proceduralRunAlpha;
+				targetArmsLocation.Y +=
+					horizontalWave * proceduralRunHorizontalAmount * proceduralRunAlpha;
+				targetArmsLocation.Z +=
+					verticalWave * proceduralRunVerticalAmount * proceduralRunAlpha;
+
+				targetArmsRotation += proceduralRunRotationOffset * proceduralRunAlpha;
+				targetArmsRotation.Roll +=
+					horizontalWave * proceduralRunRollAmount * proceduralRunAlpha;
+			}
+
 			if (isAdsAiming && firstPersonWeaponMesh->DoesSocketExist(adsSightSocketName))
 			{
 				if (lockAdsTransformDuringFire
