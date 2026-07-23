@@ -4,6 +4,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "FPSGameMode.h"
 AEnemyCharacter::AEnemyCharacter()
@@ -63,22 +64,20 @@ void AEnemyCharacter::HandleDamaged(
 		return;
 	}
 
-	if (IsValid(attackerActor) && attackerActor != this)
+	ReceiveDamageAlert(attackerActor);
+
+	if (IsValid(attackerActor) && damageAlertRadius > 0.0f)
 	{
-		SetAlertMovementMode(true);
-		damageAlertTarget = attackerActor;
-		damageAlertEndTime = GetWorld()->GetTimeSeconds() + damageAlertDuration;
-
-		if (AEnemyAIController* aiController = Cast<AEnemyAIController>(GetController()))
+		const float alertRadiusSquared = FMath::Square(damageAlertRadius);
+		for (TActorIterator<AEnemyCharacter> enemyIterator(GetWorld()); enemyIterator; ++enemyIterator)
 		{
-			if (UBlackboardComponent* blackboard = aiController->GetBlackboardComponent())
+			AEnemyCharacter* nearbyEnemy = *enemyIterator;
+			if (nearbyEnemy
+				&& nearbyEnemy != this
+				&& FVector::DistSquared(GetActorLocation(), nearbyEnemy->GetActorLocation()) <= alertRadiusSquared)
 			{
-				blackboard->SetValueAsObject(TEXT("targetActor"), attackerActor);
-				blackboard->SetValueAsVector(TEXT("lastKnownLocation"), attackerActor->GetActorLocation());
-				blackboard->SetValueAsBool(TEXT("isCombatReady"), false);
+				nearbyEnemy->ReceiveDamageAlert(attackerActor);
 			}
-
-			aiController->SetFocus(attackerActor);
 		}
 	}
 
@@ -91,6 +90,32 @@ void AEnemyCharacter::HandleDamaged(
 		healthComponent->currentHealth,
 		healthComponent->maxHealth,
 		*hitLocation.ToString());
+}
+
+void AEnemyCharacter::ReceiveDamageAlert(AActor* attackerActor)
+{
+	if (!IsValid(attackerActor)
+		|| attackerActor == this
+		|| (healthComponent && healthComponent->isDead))
+	{
+		return;
+	}
+
+	SetAlertMovementMode(true);
+	damageAlertTarget = attackerActor;
+	damageAlertEndTime = GetWorld()->GetTimeSeconds() + damageAlertDuration;
+
+	if (AEnemyAIController* aiController = Cast<AEnemyAIController>(GetController()))
+	{
+		if (UBlackboardComponent* blackboard = aiController->GetBlackboardComponent())
+		{
+			blackboard->SetValueAsObject(TEXT("targetActor"), attackerActor);
+			blackboard->SetValueAsVector(TEXT("lastKnownLocation"), attackerActor->GetActorLocation());
+			blackboard->SetValueAsBool(TEXT("isCombatReady"), false);
+		}
+
+		aiController->SetFocus(attackerActor);
+	}
 }
 
 bool AEnemyCharacter::IsDamageAlertActive() const

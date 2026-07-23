@@ -59,6 +59,11 @@ void APC_PlayerController::BeginPlay()
 		optionWidget = CreateWidget<UUserWidget>(this, optionWidgetClass);
 	}
 
+	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+	{
+		gameMode->onGameOver.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
+	}
+
 	if (startWidget)
 	{
 		startWidget->AddToViewport();
@@ -69,6 +74,37 @@ void APC_PlayerController::BeginPlay()
 	{
 		playerHudWidget->AddToViewport();
 	}
+}
+
+void APC_PlayerController::ShowGameOverWidget()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (playerHudWidget)
+	{
+		playerHudWidget->RemoveFromParent();
+	}
+
+	if (optionWidget)
+	{
+		optionWidget->RemoveFromParent();
+	}
+
+	if (!endWidget && endWidgetClass)
+	{
+		endWidget = CreateWidget<UUserWidget>(this, endWidgetClass);
+	}
+
+	if (endWidget && !endWidget->IsInViewport())
+	{
+		endWidget->AddToViewport();
+	}
+
+	bShowMouseCursor = true;
+	SetInputMode(FInputModeUIOnly());
 }
 
 void APC_PlayerController::SetupInputComponent()
