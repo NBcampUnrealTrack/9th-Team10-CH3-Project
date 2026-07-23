@@ -3,6 +3,8 @@
 #include "GameFramework/Character.h"
 #include "EnemyCharacter.generated.h"
 class UHealthComponent;
+class UNiagaraSystem;
+class USoundBase;
 UCLASS()
 class TEAM10CH3PROJECT_API AEnemyCharacter : public ACharacter
 {
@@ -13,7 +15,7 @@ public:
 	float sightRadius = 5000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Detection")
-	float sightHalfAngleDegrees = 60.f;
+	float sightHalfAngleDegrees = 90.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	float attackRange = 4500.f;
@@ -34,6 +36,9 @@ public:
 	AActor* GetDamageAlertTarget() const;
 	void SetAlertMovementMode(bool isAlerted);
 	void ReceiveDamageAlert(AActor* attackerActor);
+	void PlayMuzzleFlash() const;
+	void PlayMuzzleSound() const;
+	bool GetMuzzleLocation(FVector& outLocation) const;
 
 	UFUNCTION(BlueprintPure, Category = "AI|Animation")
 	FRotator GetUpperBodyAimOffset() const;
@@ -46,6 +51,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Combat")
 	float attackMaxSpreadDegrees = 12.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Effects")
+	UNiagaraSystem* muzzleFlashEffect = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Effects")
+	FName muzzleSocketName = TEXT("Muzzle");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Effects")
+	USoundBase* muzzleFireSound = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Movement", meta = (ClampMin = "0.0"))
 	float patrolRotationSpeed = 360.0f;

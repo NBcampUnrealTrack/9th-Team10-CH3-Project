@@ -8,6 +8,7 @@ class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UNiagaraSystem;
+class USoundBase;
 class ABattleSystem;
 
 UCLASS()
@@ -48,6 +49,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade|Effects", meta = (ClampMin = "0.1"))
 	float explosionEffectDuration = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade|Effects")
+	USoundBase* explosionSound = nullptr;
 
 	void InitGrenade(
 		ABattleSystem* inBattleSystem,

@@ -1,7 +1,6 @@
 #include "BattleSystem.h"
 #include "HealthComponent.h"
 #include "GrenadeProjectile.h"
-#include "DrawDebugHelpers.h"
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UObject/ConstructorHelpers.h"
@@ -188,16 +187,6 @@ void ABattleSystem::AttackAroundLocation(
 		nullptr,
 		ignoreActors,
 		overlapActors
-	);
-
-	DrawDebugSphere(
-		GetWorld(),
-		attackLocation,
-		attackRange,
-		32,
-		FColor::Red,
-		false,
-		2.0f
 	);
 
 	for (AActor* overlapActor : overlapActors)

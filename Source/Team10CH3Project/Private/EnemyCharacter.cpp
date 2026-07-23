@@ -1,12 +1,19 @@
 #include "EnemyCharacter.h"
 #include "EnemyAIController.h"
 #include "HealthComponent.h"
+#include "PlayerCharacter.h"
 
 #include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 #include "FPSGameMode.h"
+#include "UObject/ConstructorHelpers.h"
 AEnemyCharacter::AEnemyCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -14,6 +21,20 @@ AEnemyCharacter::AEnemyCharacter()
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	bUseControllerRotationYaw = false;
 	healthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> MuzzleFlashFinder(
+		TEXT("/Game/MuzzleFlash/MuzzleFlash/Niagara/NS_MuzzleFlash.NS_MuzzleFlash"));
+	if (MuzzleFlashFinder.Succeeded())
+	{
+		muzzleFlashEffect = MuzzleFlashFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<USoundBase> MuzzleFireSoundFinder(
+		TEXT("/Game/NBC_Folder/Sound/SC_Shoot_A_Gun.SC_Shoot_A_Gun"));
+	if (MuzzleFireSoundFinder.Succeeded())
+	{
+		muzzleFireSound = MuzzleFireSoundFinder.Object;
+	}
 	GetCapsuleComponent()->SetCollisionResponseToChannel(
 		ECC_Visibility,
 		ECollisionResponse::ECR_Block);
@@ -96,6 +117,7 @@ void AEnemyCharacter::ReceiveDamageAlert(AActor* attackerActor)
 {
 	if (!IsValid(attackerActor)
 		|| attackerActor == this
+		|| !Cast<APlayerCharacter>(attackerActor)
 		|| (healthComponent && healthComponent->isDead))
 	{
 		return;
@@ -116,6 +138,80 @@ void AEnemyCharacter::ReceiveDamageAlert(AActor* attackerActor)
 
 		aiController->SetFocus(attackerActor);
 	}
+}
+
+void AEnemyCharacter::PlayMuzzleFlash() const
+{
+	if (!muzzleFlashEffect)
+	{
+		return;
+	}
+
+	TArray<UStaticMeshComponent*> staticMeshComponents;
+	GetComponents(staticMeshComponents);
+
+	for (UStaticMeshComponent* staticMeshComponent : staticMeshComponents)
+	{
+		if (!staticMeshComponent || !staticMeshComponent->DoesSocketExist(muzzleSocketName))
+		{
+			continue;
+		}
+
+		UNiagaraFunctionLibrary::SpawnSystemAttached(
+			muzzleFlashEffect,
+			staticMeshComponent,
+			muzzleSocketName,
+			FVector::ZeroVector,
+			FRotator::ZeroRotator,
+			EAttachLocation::SnapToTarget,
+			true
+		);
+		return;
+	}
+}
+
+void AEnemyCharacter::PlayMuzzleSound() const
+{
+	if (!muzzleFireSound)
+	{
+		return;
+	}
+
+	TArray<UStaticMeshComponent*> staticMeshComponents;
+	GetComponents(staticMeshComponents);
+
+	for (UStaticMeshComponent* staticMeshComponent : staticMeshComponents)
+	{
+		if (!staticMeshComponent || !staticMeshComponent->DoesSocketExist(muzzleSocketName))
+		{
+			continue;
+		}
+
+		UGameplayStatics::PlaySoundAtLocation(
+			this,
+			muzzleFireSound,
+			staticMeshComponent->GetSocketLocation(muzzleSocketName));
+		return;
+	}
+}
+
+bool AEnemyCharacter::GetMuzzleLocation(FVector& outLocation) const
+{
+	TArray<UStaticMeshComponent*> staticMeshComponents;
+	GetComponents(staticMeshComponents);
+
+	for (UStaticMeshComponent* staticMeshComponent : staticMeshComponents)
+	{
+		if (!staticMeshComponent || !staticMeshComponent->DoesSocketExist(muzzleSocketName))
+		{
+			continue;
+		}
+
+		outLocation = staticMeshComponent->GetSocketLocation(muzzleSocketName);
+		return true;
+	}
+
+	return false;
 }
 
 bool AEnemyCharacter::IsDamageAlertActive() const

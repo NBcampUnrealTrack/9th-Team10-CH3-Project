@@ -7,7 +7,6 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "DrawDebugHelpers.h"
 
 namespace
 {
@@ -174,6 +173,9 @@ EBTNodeResult::Type UBTTask_AttackPlayer::FireShot(UBehaviorTreeComponent& owner
 	FVector traceStart;
 	FRotator enemyEyeRotation;
 	enemy->GetActorEyesViewPoint(traceStart, enemyEyeRotation);
+	// M16's Muzzle socket is the authoritative bullet origin. The eye location
+	// remains a fallback only until the weapon mesh or socket is unavailable.
+	enemy->GetMuzzleLocation(traceStart);
 
 	const AFPSGameMode* gameMode = enemy->GetWorld()->GetAuthGameMode<AFPSGameMode>();
 	const FEnemyDifficultySettings* difficultySettings = gameMode
@@ -205,6 +207,8 @@ EBTNodeResult::Type UBTTask_AttackPlayer::FireShot(UBehaviorTreeComponent& owner
 	const float spreadRadians = FMath::DegreesToRadians(spreadDegrees);
 	const FVector fireDirection = FMath::VRandCone(idealDirection, spreadRadians);
 	const FVector traceEnd = traceStart + fireDirection * enemy->attackRange;
+	enemy->PlayMuzzleFlash();
+	enemy->PlayMuzzleSound();
 	FHitResult hitResult;
 	FCollisionQueryParams traceParams(SCENE_QUERY_STAT(EnemyAttackTrace), false, enemy);
 	if (ACharacter* characterTarget = Cast<ACharacter>(target))
@@ -217,18 +221,6 @@ EBTNodeResult::Type UBTTask_AttackPlayer::FireShot(UBehaviorTreeComponent& owner
 		traceEnd,
 		ECC_Visibility,
 		traceParams);
-	if (enemy->attackTraceDrawDuration > 0.0f)
-	{
-		DrawDebugLine(
-			enemy->GetWorld(),
-			traceStart,
-			isHit ? hitResult.ImpactPoint : traceEnd,
-			isHit ? FColor::Green : FColor::Red,
-			false,
-			enemy->attackTraceDrawDuration,
-			0,
-			1.0f);
-	}
 	// Hit components can belong to attached actors; resolve their owning health component.
 	UHealthComponent* hitHealth = isHit
 		? FindHealthComponentFromHit(hitResult.GetActor())

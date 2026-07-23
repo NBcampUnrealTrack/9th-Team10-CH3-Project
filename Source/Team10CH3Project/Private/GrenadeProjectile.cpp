@@ -3,9 +3,11 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "NiagaraActor.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -42,6 +44,13 @@ AGrenadeProjectile::AGrenadeProjectile()
 	{
 		explosionEffect = ExplosionEffectFinder.Object;
 	}
+
+	static ConstructorHelpers::FObjectFinder<USoundBase> ExplosionSoundFinder(
+		TEXT("/Game/NBC_Folder/Sound/268557__cydon__explosion_001.268557__cydon__explosion_001"));
+	if (ExplosionSoundFinder.Succeeded())
+	{
+		explosionSound = ExplosionSoundFinder.Object;
+	}
 }
 
 void AGrenadeProjectile::BeginPlay()
@@ -75,6 +84,11 @@ void AGrenadeProjectile::InitGrenade(
 void AGrenadeProjectile::Explode()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Grenade Explode at %s"), *GetActorLocation().ToString());
+
+	if (explosionSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, explosionSound, GetActorLocation());
+	}
 
 	if (explosionEffect)
 	{
