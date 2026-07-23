@@ -3,7 +3,11 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "NiagaraActor.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 AGrenadeProjectile::AGrenadeProjectile()
 {
@@ -29,6 +33,15 @@ AGrenadeProjectile::AGrenadeProjectile()
 	projectileMovement->ProjectileGravityScale = 1.0f;
 	projectileMovement->bShouldBounce = true;
 	projectileMovement->Bounciness = 0.3f;
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> ExplosionEffectFinder(
+		TEXT("/Game/Weapons/Grenade/Explosions/Prefabs/Niagara_Dust_Explosion_01.Niagara_Dust_Explosion_01")
+	);
+
+	if (ExplosionEffectFinder.Succeeded())
+	{
+		explosionEffect = ExplosionEffectFinder.Object;
+	}
 }
 
 void AGrenadeProjectile::BeginPlay()
@@ -61,6 +74,45 @@ void AGrenadeProjectile::InitGrenade(
 
 void AGrenadeProjectile::Explode()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Grenade Explode at %s"), *GetActorLocation().ToString());
+
+	if (explosionEffect)
+	{
+		FActorSpawnParameters effectSpawnParams;
+		effectSpawnParams.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		ANiagaraActor* explosionActor = GetWorld()->SpawnActor<ANiagaraActor>(
+			ANiagaraActor::StaticClass(),
+			GetActorLocation() + FVector(0.0f, 0.0f, 20.0f),
+			FRotator::ZeroRotator,
+			effectSpawnParams
+		);
+
+		if (explosionActor)
+		{
+			UNiagaraComponent* spawnedEffect = explosionActor->GetNiagaraComponent();
+			if (spawnedEffect)
+			{
+				spawnedEffect->SetAsset(explosionEffect);
+				spawnedEffect->SetWorldScale3D(explosionEffectScale);
+				spawnedEffect->SetForceSolo(true);
+				spawnedEffect->Activate(true);
+			}
+
+			explosionActor->SetLifeSpan(explosionEffectDuration);
+			UE_LOG(LogTemp, Warning, TEXT("Grenade explosion Niagara spawned"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to spawn grenade explosion Niagara"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Grenade explosionEffect is null"));
+	}
+
 	if (battleSystem)
 	{
 		battleSystem->AttackAroundLocation(

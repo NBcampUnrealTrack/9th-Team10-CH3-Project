@@ -3,10 +3,20 @@
 #include "GrenadeProjectile.h"
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "UObject/ConstructorHelpers.h"
 
 ABattleSystem::ABattleSystem()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	static ConstructorHelpers::FClassFinder<AGrenadeProjectile> GrenadeProjectileFinder(
+		TEXT("/Game/BP/BP_Grenade")
+	);
+
+	if (GrenadeProjectileFinder.Succeeded())
+	{
+		grenadeProjectileClass = GrenadeProjectileFinder.Class;
+	}
 }
 
 void ABattleSystem::BeginPlay()

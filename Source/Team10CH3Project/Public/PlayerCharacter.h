@@ -16,7 +16,13 @@ class UWeaponComponent;
 class ABattleSystem;
 class USceneComponent;
 class UAnimSequenceBase;
+class UStaticMeshComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnAdsAimingChanged,
+	bool,
+	bIsAdsAiming
+);
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -35,6 +41,9 @@ public:
 	// 탄약/재장전 상태 전담 컴포넌트. 실제 공격 판정은 battleSystem에 위임한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	UWeaponComponent* weaponComponent = nullptr;
+
+	UPROPERTY(BlueprintAssignable, Category = "Aim")
+	FOnAdsAimingChanged OnAdsAimingChanged;
 	
 
 	void Move(const FInputActionValue& value);
@@ -63,6 +72,9 @@ public:
 
 	bool CanAim() const;
 
+	void StartAttack();
+	void StopAttack();
+	void ToggleFireMode();
 	void Attack();
 	void Reload();
 
@@ -101,6 +113,39 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	USkeletalMeshComponent* firstPersonWeaponMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Magazine")
+	UStaticMeshComponent* firstPersonMagazineMesh;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Magazine")
+	FName magazineSocketName = TEXT("Magazine");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine")
+	FVector magazineLocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine")
+	FRotator magazineRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine", meta = (ClampMin = "0.01"))
+	float magazineScale = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Magazine")
+	FName magazineHandBoneName = TEXT("hand_l");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float magazineDetachTimeRatio = 0.28f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float magazineAttachTimeRatio = 0.82f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine|Empty Reload", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float emptyMagazineDetachTimeRatio = 0.28f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Magazine|Empty Reload", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float emptyMagazineAttachTimeRatio = 0.82f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person|Grenade")
+	UStaticMeshComponent* firstPersonGrenadeMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "First Person")
 	FVector firstPersonArmsLocation = FVector(-10.0f, 0.0f, -150.0f);
@@ -148,13 +193,7 @@ protected:
 	UAnimSequenceBase* firstPersonReloadAnimation = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
-	UAnimSequenceBase* firstPersonAimedReloadAnimation = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
 	UAnimSequenceBase* firstPersonEmptyReloadAnimation = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon")
-	UAnimSequenceBase* firstPersonAimedEmptyReloadAnimation = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Skill")
 	UAnimSequenceBase* grenadeReadyAnimation = nullptr;
@@ -176,6 +215,37 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
 	float firstPersonFireBlendOutTime = 0.06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon")
+	bool lockAdsTransformDuringFire = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon")
+	bool useFirstPersonAimedFireAnimation = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon")
+	FVector adsFireRecoilLocation = FVector(-2.0f, 0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
+	float maxAdsBackwardRecoil = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon")
+	FRotator adsFireRecoilRotation = FRotator(1.5f, 0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|First Person Weapon", meta = (ClampMin = "0.0"))
+	float adsFireRecoilRecoverySpeed = 18.0f;
+
+	bool isFirstPersonFireAnimationPlaying = false;
+	float adsFireRecoilAlpha = 0.0f;
+	bool hasCachedAdsArmsTransform = false;
+	FVector cachedAdsArmsLocation = FVector::ZeroVector;
+	FRotator cachedAdsArmsRotation = FRotator::ZeroRotator;
+	FTimerHandle firstPersonFireAnimationTimerHandle;
+	FTimerHandle firstPersonMagazineDetachTimerHandle;
+	FTimerHandle firstPersonMagazineAttachTimerHandle;
+
+	void ReleaseAdsFireTransformLock();
+	void DetachFirstPersonMagazineToHand();
+	void AttachFirstPersonMagazineToWeapon();
 
 	// 실제 공격 판정(라인 트레이스, 데미지, 헤드샷, 범위 공격)을 담당하는 액터.
 	// AActor 파생 클래스라 컴포넌트로 붙일 수 없어서, BeginPlay에서 스폰해서 참조만 들고 있는다.
@@ -204,10 +274,23 @@ protected:
 	FVector firstPersonEyeOffset = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "-89.0", ClampMax = "0.0"))
-	float firstPersonMinViewPitch = -60.0f;
+	float firstPersonMinViewPitch = -80.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "0.0", ClampMax = "89.0"))
-	float firstPersonMaxViewPitch = 60.0f;
+	float firstPersonMaxViewPitch = 80.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Fire Mode")
+	bool isAutomaticFire = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Fire Mode", meta = (ClampMin = "0.03"))
+	float automaticFireInterval = 0.1f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Fire Mode")
+	bool isAttackHeld = false;
+
+	FTimerHandle automaticFireTimerHandle;
+
+	void AutomaticFireTick();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "0.0"))
 	float headCameraInterpSpeed = 20.0f;
@@ -220,9 +303,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Camera")
 	bool isFirstPerson = true;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	UCameraComponent* adsCamera;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|ADS")
 	FName adsSightSocketName = TEXT("SightSocket");
@@ -266,6 +346,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Aim")
 	bool isAdsAiming = false;
+
+	void SetAdsAiming(bool newIsAdsAiming);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation|Aim")
 	float aimPitch = 0.0f;
@@ -321,6 +403,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Grenade")
 	float grenadeCastTime = 0.8f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Grenade", meta = (ClampMin = "0.0"))
+	float grenadeProjectileReleaseDelay = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Grenade", meta = (ClampMin = "0.0"))
+	float grenadePresentationEndDelay = 1.0f;
+
 	// 현재 수류탄 시전 중인지
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
 	bool isCastingGrenade = false;
@@ -338,9 +426,19 @@ protected:
 	bool shouldThrowAfterCast = false;
 
 	FTimerHandle grenadeCastTimerHandle;
+	FTimerHandle grenadeProjectileReleaseTimerHandle;
+	FTimerHandle grenadePresentationEndTimerHandle;
+	bool isFirstPersonGrenadePresentationActive = false;
+	bool isFirstPersonGrenadeThrowPhase = false;
+	float firstPersonGrenadePoseTime = 0.0f;
+	FVector firstPersonGrenadeBaseLocation = FVector::ZeroVector;
+	FRotator firstPersonGrenadeBaseRotation = FRotator::ZeroRotator;
 
 	void FinishGrenadeCast();
 	void ThrowGrenade();
+	void ReleaseGrenadeProjectile();
+	void BeginFirstPersonGrenadePresentation();
+	void EndFirstPersonGrenadePresentation();
 	void ResetGrenadeState();
 	bool PlayUpperBodyAnimation(UAnimSequenceBase* animation, float playRate = 1.0f);
 	bool PlayFirstPersonUpperBodyAnimation(

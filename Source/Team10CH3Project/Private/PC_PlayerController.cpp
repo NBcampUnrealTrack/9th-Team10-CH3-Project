@@ -9,6 +9,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "InputAction.h"
+#include "InputCoreTypes.h"
 
 #include "Blueprint/UserWidget.h"
 
@@ -111,8 +112,17 @@ void APC_PlayerController::SetupInputComponent()
 
 	if (attackAction)
 	{
-		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, this, &APC_PlayerController::Attack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Started, this, &APC_PlayerController::StartAttack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Completed, this, &APC_PlayerController::StopAttack);
+		enhancedInputComponent->BindAction(attackAction, ETriggerEvent::Canceled, this, &APC_PlayerController::StopAttack);
 	}
+
+	InputComponent->BindKey(
+		EKeys::B,
+		IE_Pressed,
+		this,
+		&APC_PlayerController::ToggleFireMode
+	);
 
 	if (reloadAction)
 	{
@@ -219,11 +229,27 @@ void APC_PlayerController::StopCrouch()
 	}
 }
 
-void APC_PlayerController::Attack()
+void APC_PlayerController::StartAttack()
 {
 	if (APlayerCharacter* character = GetPlayerCharacter())
 	{
-		character->Attack();
+		character->StartAttack();
+	}
+}
+
+void APC_PlayerController::StopAttack()
+{
+	if (APlayerCharacter* character = GetPlayerCharacter())
+	{
+		character->StopAttack();
+	}
+}
+
+void APC_PlayerController::ToggleFireMode()
+{
+	if (APlayerCharacter* character = GetPlayerCharacter())
+	{
+		character->ToggleFireMode();
 	}
 }
 

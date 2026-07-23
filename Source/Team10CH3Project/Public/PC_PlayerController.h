@@ -111,7 +111,9 @@ private:
 	void StartCrouch();
 	void StopCrouch();
 
-	void Attack();
+	void StartAttack();
+	void StopAttack();
+	void ToggleFireMode();
 	void Reload();
 
 	void StartSpecialSkill();

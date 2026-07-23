@@ -7,11 +7,15 @@
 	#include "Camera/PlayerCameraManager.h"
 	#include "Components/CapsuleComponent.h"
 	#include "Components/SceneComponent.h"
+	#include "Components/StaticMeshComponent.h"
 	#include "Camera/CameraComponent.h"
 	#include "GameFramework/SpringArmComponent.h"
 	#include "Animation/AnimInstance.h"
 	#include "Animation/AnimSequenceBase.h"
 	#include "Engine/SkeletalMesh.h"
+	#include "Engine/StaticMesh.h"
+	#include "Materials/Material.h"
+	#include "UObject/ConstructorHelpers.h"
 
 	#include "HealthComponent.h"
 	#include "WeaponComponent.h"
@@ -33,15 +37,6 @@
 		weaponMesh->SetupAttachment(GetMesh(),TEXT("HandGrip_R"));
 		weaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		weaponMesh->SetGenerateOverlapEvents(false);
-
-		// 총의 조준경 시점용 카메라
-		adsCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("AdsCamera"));
-		adsCamera->SetupAttachment(weaponMesh, TEXT("SightSocket"));
-		adsCamera->SetRelativeLocation(FVector::ZeroVector);
-		adsCamera->SetRelativeRotation(FRotator::ZeroRotator);
-		adsCamera->bUsePawnControlRotation = true;
-		adsCamera->SetFieldOfView(adsFieldOfView);
-		adsCamera->SetActive(false);
 
 		firstPersonCameraRoot = CreateDefaultSubobject<USceneComponent>(TEXT("FirstPersonCameraRoot"));
 		firstPersonCameraRoot->SetupAttachment(GetCapsuleComponent());
@@ -76,6 +71,36 @@
 		firstPersonWeaponMesh->SetCastShadow(false);
 		firstPersonWeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		firstPersonWeaponMesh->SetGenerateOverlapEvents(false);
+
+		firstPersonMagazineMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonMagazine"));
+		firstPersonMagazineMesh->SetupAttachment(firstPersonWeaponMesh, magazineSocketName);
+		firstPersonMagazineMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		firstPersonMagazineMesh->SetGenerateOverlapEvents(false);
+		firstPersonMagazineMesh->SetCastShadow(false);
+		firstPersonMagazineMesh->SetOnlyOwnerSee(false);
+		firstPersonMagazineMesh->SetOwnerNoSee(false);
+
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> magazineAsset(
+			TEXT("/Game/Character/Animation/Arms/AKS74U/Meshes/SM_AKS74U_Magazine.SM_AKS74U_Magazine"));
+		if (magazineAsset.Succeeded())
+		{
+			firstPersonMagazineMesh->SetStaticMesh(magazineAsset.Object);
+		}
+
+		firstPersonGrenadeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonGrenade"));
+		firstPersonGrenadeMesh->SetupAttachment(firstPersonCamera);
+		firstPersonGrenadeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		firstPersonGrenadeMesh->SetGenerateOverlapEvents(false);
+		firstPersonGrenadeMesh->SetCastShadow(false);
+		firstPersonGrenadeMesh->SetVisibility(false, true);
+		firstPersonGrenadeMesh->SetHiddenInGame(true, true);
+
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> grenadeMeshAsset(
+			TEXT("/Game/Weapons/Grenade/SM_FragGrenade.SM_FragGrenade"));
+		if (grenadeMeshAsset.Succeeded())
+		{
+			firstPersonGrenadeMesh->SetStaticMesh(grenadeMeshAsset.Object);
+		}
 
 		// Spring Arm
 		springArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -113,6 +138,14 @@
 	{
 		Super::BeginPlay();
 
+		if (firstPersonGrenadeMesh && !firstPersonGrenadeMesh->GetStaticMesh())
+		{
+			firstPersonGrenadeMesh->SetStaticMesh(LoadObject<UStaticMesh>(
+				nullptr,
+				TEXT("/Game/Weapons/Grenade/SM_FragGrenade.SM_FragGrenade")
+			));
+		}
+
 		firstPersonCameraRoot->AttachToComponent(
 			GetCapsuleComponent(),
 			FAttachmentTransformRules::KeepRelativeTransform
@@ -139,11 +172,9 @@
 
 		firstPersonCamera->SetActive(true);
 		thirdPersonCamera->SetActive(false);
-		adsCamera->SetActive(false);
-
 		isFirstPerson = true;
 		isAiming = false;
-		isAdsAiming = false;
+		SetAdsAiming(false);
 
 		springArm->TargetArmLength = normalArmLength;
 		springArm->SocketOffset = normalSocketOffset;
@@ -192,13 +223,8 @@
 			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Fire_Aimed.A_FP_AKS74U_Fire_Aimed"));
 		loadFirstPersonAnimation(firstPersonReloadAnimation,
 			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Reload.A_FP_AKS74U_Reload"));
-		loadFirstPersonAnimation(firstPersonAimedReloadAnimation,
-			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Reload_Aimed.A_FP_AKS74U_Reload_Aimed"));
 		loadFirstPersonAnimation(firstPersonEmptyReloadAnimation,
 			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Reload_Empty.A_FP_AKS74U_Reload_Empty"));
-		loadFirstPersonAnimation(firstPersonAimedEmptyReloadAnimation,
-			TEXT("/Game/Character/Animation/Arms/AKS74U/Animations/A_FP_AKS74U_Reload_Empty_Aimed.A_FP_AKS74U_Reload_Empty_Aimed"));
-
 		if (weaponMesh && firstPersonWeaponMesh)
 		{
 			firstPersonWeaponMesh->SetSkeletalMeshAsset(weaponMesh->GetSkeletalMeshAsset());
@@ -233,6 +259,18 @@
 			);
 			firstPersonWeaponMesh->SetRelativeLocation(firstPersonWeaponFallbackLocation);
 			firstPersonWeaponMesh->SetRelativeRotation(firstPersonWeaponFallbackRotation);
+		}
+
+		if (firstPersonMagazineMesh)
+		{
+			firstPersonMagazineMesh->AttachToComponent(
+				firstPersonWeaponMesh,
+				FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+				magazineSocketName
+			);
+			firstPersonMagazineMesh->SetRelativeLocation(magazineLocationOffset);
+			firstPersonMagazineMesh->SetRelativeRotation(magazineRotationOffset);
+			firstPersonMagazineMesh->SetRelativeScale3D(FVector(magazineScale));
 		}
 
 		UpdateCameraPresentation();
@@ -310,81 +348,117 @@
 
 		if (isFirstPerson && firstPersonArmsMesh && firstPersonWeaponMesh)
 		{
+			adsFireRecoilAlpha = FMath::FInterpTo(
+				adsFireRecoilAlpha,
+				0.0f,
+				DeltaTime,
+				adsFireRecoilRecoverySpeed
+			);
+
 			FVector targetArmsLocation = firstPersonArmsLocation;
 			FRotator targetArmsRotation = firstPersonArmsRotation;
 			if (isAdsAiming && firstPersonWeaponMesh->DoesSocketExist(adsSightSocketName))
 			{
-				if (alignAdsSightRotation)
+				if (lockAdsTransformDuringFire
+					&& isFirstPersonFireAnimationPlaying
+					&& hasCachedAdsArmsTransform)
 				{
-					const FTransform sightRelativeToArms =
-						firstPersonWeaponMesh->GetSocketTransform(adsSightSocketName, RTS_World)
-							.GetRelativeTransform(firstPersonArmsMesh->GetComponentTransform());
-
-					const FTransform desiredSightRelativeToCamera(
-						adsSightViewRotation,
-						adsSightViewOffset
-					);
-
-					const FTransform targetArmsRelativeToCamera =
-						sightRelativeToArms.Inverse() * desiredSightRelativeToCamera;
-
-					targetArmsLocation = targetArmsRelativeToCamera.GetLocation();
-					targetArmsRotation = targetArmsRelativeToCamera.Rotator();
+					targetArmsLocation = cachedAdsArmsLocation;
+					targetArmsRotation = cachedAdsArmsRotation;
 				}
 				else
 				{
-					if (firstPersonWeaponMesh->DoesSocketExist(adsFrontSightSocketName))
+					if (alignAdsSightRotation)
 					{
-						const FTransform armsWorldTransform =
-							firstPersonArmsMesh->GetComponentTransform();
-						const FVector rearSightInArmsSpace =
-							armsWorldTransform.InverseTransformPosition(
-								firstPersonWeaponMesh->GetSocketLocation(adsSightSocketName)
-							);
-						const FVector frontSightInArmsSpace =
-							armsWorldTransform.InverseTransformPosition(
-								firstPersonWeaponMesh->GetSocketLocation(adsFrontSightSocketName)
-							);
+						const FTransform sightRelativeToArms =
+							firstPersonWeaponMesh->GetSocketTransform(adsSightSocketName, RTS_World)
+								.GetRelativeTransform(firstPersonArmsMesh->GetComponentTransform());
 
-						const FQuat currentArmsRotation =
-							firstPersonArmsMesh->GetRelativeRotation().Quaternion();
-						const FVector currentSightDirection =
-							currentArmsRotation.RotateVector(
-								(frontSightInArmsSpace - rearSightInArmsSpace).GetSafeNormal()
-							).GetSafeNormal();
-						const FVector desiredSightDirection =
-							adsSightViewRotation.Quaternion().RotateVector(FVector::ForwardVector);
-
-						const FQuat targetArmsRotationQuat =
-							FQuat::FindBetweenNormals(currentSightDirection, desiredSightDirection)
-							* currentArmsRotation;
-
-						const FTransform rotatedArmsTransform(
-							targetArmsRotationQuat,
-							FVector::ZeroVector,
-							FVector(firstPersonArmsScale)
-						);
-						targetArmsLocation =
+						const FTransform desiredSightRelativeToCamera(
+							adsSightViewRotation,
 							adsSightViewOffset
-							- rotatedArmsTransform.TransformPosition(rearSightInArmsSpace);
-						targetArmsRotation = targetArmsRotationQuat.Rotator();
+						);
+
+						const FTransform targetArmsRelativeToCamera =
+							sightRelativeToArms.Inverse() * desiredSightRelativeToCamera;
+
+						targetArmsLocation = targetArmsRelativeToCamera.GetLocation();
+						targetArmsRotation = targetArmsRelativeToCamera.Rotator();
 					}
 					else
 					{
-					const FVector sightLocationInCameraSpace =
-						firstPersonCamera->GetComponentTransform().InverseTransformPosition(
-							firstPersonWeaponMesh->GetSocketLocation(adsSightSocketName)
-						);
+						if (firstPersonWeaponMesh->DoesSocketExist(adsFrontSightSocketName))
+						{
+							const FTransform armsWorldTransform =
+								firstPersonArmsMesh->GetComponentTransform();
+							const FVector rearSightInArmsSpace =
+								armsWorldTransform.InverseTransformPosition(
+									firstPersonWeaponMesh->GetSocketLocation(adsSightSocketName)
+								);
+							const FVector frontSightInArmsSpace =
+								armsWorldTransform.InverseTransformPosition(
+									firstPersonWeaponMesh->GetSocketLocation(adsFrontSightSocketName)
+								);
 
-					targetArmsLocation =
-						firstPersonArmsMesh->GetRelativeLocation()
-						+ (adsSightViewOffset - sightLocationInCameraSpace);
-					targetArmsRotation = FRotator(
-						adsSightViewRotation.Quaternion()
-						* firstPersonArmsRotation.Quaternion()
-					);
+							const FQuat currentArmsRotation =
+								firstPersonArmsMesh->GetRelativeRotation().Quaternion();
+							const FVector currentSightDirection =
+								currentArmsRotation.RotateVector(
+									(frontSightInArmsSpace - rearSightInArmsSpace).GetSafeNormal()
+								).GetSafeNormal();
+							const FVector desiredSightDirection =
+								adsSightViewRotation.Quaternion().RotateVector(FVector::ForwardVector);
+
+							const FQuat targetArmsRotationQuat =
+								FQuat::FindBetweenNormals(currentSightDirection, desiredSightDirection)
+								* currentArmsRotation;
+
+							const FTransform rotatedArmsTransform(
+								targetArmsRotationQuat,
+								FVector::ZeroVector,
+								FVector(firstPersonArmsScale)
+							);
+							targetArmsLocation =
+								adsSightViewOffset
+								- rotatedArmsTransform.TransformPosition(rearSightInArmsSpace);
+							targetArmsRotation = targetArmsRotationQuat.Rotator();
+						}
+						else
+						{
+							const FVector sightLocationInCameraSpace =
+								firstPersonCamera->GetComponentTransform().InverseTransformPosition(
+									firstPersonWeaponMesh->GetSocketLocation(adsSightSocketName)
+								);
+
+							targetArmsLocation =
+								firstPersonArmsMesh->GetRelativeLocation()
+								+ (adsSightViewOffset - sightLocationInCameraSpace);
+							targetArmsRotation = FRotator(
+								adsSightViewRotation.Quaternion()
+								* firstPersonArmsRotation.Quaternion()
+							);
+						}
 					}
+
+					cachedAdsArmsLocation = targetArmsLocation;
+					cachedAdsArmsRotation = targetArmsRotation;
+					hasCachedAdsArmsTransform = true;
 				}
+			}
+
+			if (isAdsAiming && adsFireRecoilAlpha > UE_SMALL_NUMBER)
+			{
+				FVector recoilLocation = adsFireRecoilLocation * adsFireRecoilAlpha;
+				recoilLocation.X = FMath::Max(recoilLocation.X, -maxAdsBackwardRecoil);
+				targetArmsLocation += recoilLocation;
+				const FQuat recoilRotation = FQuat::Slerp(
+					FQuat::Identity,
+					adsFireRecoilRotation.Quaternion(),
+					adsFireRecoilAlpha
+				);
+				targetArmsRotation = (
+					recoilRotation * targetArmsRotation.Quaternion()
+				).Rotator();
 			}
 
 			firstPersonArmsMesh->SetRelativeLocation(
@@ -454,6 +528,37 @@
 				aimInterpSpeed
 			)
 		);
+
+		if (isFirstPersonGrenadePresentationActive && firstPersonArmsMesh)
+		{
+			firstPersonGrenadePoseTime += DeltaTime;
+			const float phaseDuration = isFirstPersonGrenadeThrowPhase ? 0.45f : 0.3f;
+			const float phaseAlpha = FMath::Clamp(firstPersonGrenadePoseTime / phaseDuration, 0.0f, 1.0f);
+			const float easedAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, phaseAlpha, 2.0f);
+			const float motionAlpha = isFirstPersonGrenadeThrowPhase
+				? FMath::Sin(phaseAlpha * PI)
+				: easedAlpha;
+
+			const FVector poseOffset = isFirstPersonGrenadeThrowPhase
+				? FVector(10.0f, -4.0f, 4.0f)
+				: FVector(2.0f, -2.0f, 2.0f);
+			const FRotator poseRotation = isFirstPersonGrenadeThrowPhase
+				? FRotator(-3.0f, -5.0f, 3.0f)
+				: FRotator(-1.0f, -2.0f, 1.0f);
+
+			firstPersonArmsMesh->SetRelativeLocation(
+				firstPersonGrenadeBaseLocation + poseOffset * motionAlpha
+			);
+			firstPersonArmsMesh->SetRelativeRotation(
+				(
+					FQuat::Slerp(
+						firstPersonGrenadeBaseRotation.Quaternion(),
+						(poseRotation + firstPersonGrenadeBaseRotation).Quaternion(),
+						motionAlpha
+					)
+				).Rotator()
+			);
+		}
 	}
 
 	// Called to bind functionality to input
@@ -572,6 +677,7 @@
 
 	void APlayerCharacter::StartSpecialSkill()
 	{
+		StopAttack();
 		isGrenadeKeyHeld = true;
 
 		// 이미 시전 중이거나 손에 수류탄을 들고 있으면 다시 시작하지 않는다.
@@ -603,6 +709,7 @@
 		shouldThrowAfterCast = false;
 
 		PlayUpperBodyAnimation(grenadeReadyAnimation);
+		BeginFirstPersonGrenadePresentation();
 
 		GetWorldTimerManager().SetTimer(
 			grenadeCastTimerHandle,
@@ -669,36 +776,117 @@
 
 		// 중복 호출 방지를 위해 먼저 상태를 변경한다.
 		isGrenadeReady = false;
-		isCastingGrenade = false;
+		isCastingGrenade = true;
 
 		PlayUpperBodyAnimation(grenadeThrowAnimation);
+		isFirstPersonGrenadeThrowPhase = true;
+		firstPersonGrenadePoseTime = 0.0f;
 
-		if (battleSystem)
-		{
-			FVector viewLocation;
-			FVector viewDirection;
-
-			GetAttackView(viewLocation, viewDirection);
-
-			FVector throwLocation =
-				GetMesh()->GetSocketLocation(TEXT("HandGrip_R"));
-
-			battleSystem->RequestSkillAttackByView(
-				this,
-				viewLocation,
-				viewDirection,
-				throwLocation
-			);
-		}
+		GetWorldTimerManager().SetTimer(
+			grenadeProjectileReleaseTimerHandle,
+			this,
+			&APlayerCharacter::ReleaseGrenadeProjectile,
+			grenadeProjectileReleaseDelay,
+			false
+		);
+		GetWorldTimerManager().SetTimer(
+			grenadePresentationEndTimerHandle,
+			this,
+			&APlayerCharacter::EndFirstPersonGrenadePresentation,
+			FMath::Max(grenadePresentationEndDelay, grenadeProjectileReleaseDelay),
+			false
+		);
 
 		UE_LOG(LogTemp, Warning, TEXT("Grenade Throw"));
 
+	}
+
+	void APlayerCharacter::ReleaseGrenadeProjectile()
+	{
+		if (!battleSystem)
+		{
+			return;
+		}
+
+		FVector viewLocation;
+		FVector viewDirection;
+		GetAttackView(viewLocation, viewDirection);
+		const FVector throwLocation = GetMesh()->GetSocketLocation(TEXT("HandGrip_R"));
+		battleSystem->RequestSkillAttackByView(this, viewLocation, viewDirection, throwLocation);
+		if (firstPersonGrenadeMesh)
+		{
+			firstPersonGrenadeMesh->SetVisibility(false, true);
+			firstPersonGrenadeMesh->SetHiddenInGame(true, true);
+		}
+	}
+
+	void APlayerCharacter::BeginFirstPersonGrenadePresentation()
+	{
+		if (!isFirstPerson || !firstPersonArmsMesh)
+		{
+			return;
+		}
+
+		ExitAim();
+		isFirstPersonGrenadePresentationActive = true;
+		isFirstPersonGrenadeThrowPhase = false;
+		firstPersonGrenadePoseTime = 0.0f;
+		firstPersonGrenadeBaseLocation = firstPersonArmsMesh->GetRelativeLocation();
+		firstPersonGrenadeBaseRotation = firstPersonArmsMesh->GetRelativeRotation();
+		firstPersonArmsMesh->SetVisibility(true, true);
+		firstPersonArmsMesh->SetHiddenInGame(false, true);
+		firstPersonWeaponMesh->SetHiddenInGame(true, true);
+		firstPersonGrenadeMesh->AttachToComponent(
+			firstPersonCamera,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale
+		);
+		firstPersonGrenadeMesh->SetRelativeLocation(FVector(65.0f, 0.0f, -15.0f));
+		firstPersonGrenadeMesh->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
+		firstPersonGrenadeMesh->SetRelativeScale3D(FVector(1.0f));
+		const FBoxSphereBounds grenadeLocalBounds = firstPersonGrenadeMesh->CalcBounds(FTransform::Identity);
+		const float grenadeMaxExtent = grenadeLocalBounds.BoxExtent.GetMax();
+		if (grenadeMaxExtent > UE_SMALL_NUMBER)
+		{
+			const float grenadeViewScale = 6.0f / grenadeMaxExtent;
+			firstPersonGrenadeMesh->SetRelativeScale3D(FVector(grenadeViewScale));
+		}
+		firstPersonGrenadeMesh->SetRenderInMainPass(true);
+		firstPersonGrenadeMesh->SetRenderInDepthPass(true);
+		firstPersonGrenadeMesh->SetVisibility(true, true);
+		firstPersonGrenadeMesh->SetHiddenInGame(false, true);
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("FPS grenade procedural presentation: Visible=%s Hidden=%s Location=%s Rotation=%s"),
+			firstPersonArmsMesh->IsVisible() ? TEXT("true") : TEXT("false"),
+			firstPersonArmsMesh->bHiddenInGame ? TEXT("true") : TEXT("false"),
+			*firstPersonArmsMesh->GetRelativeLocation().ToString(),
+			*firstPersonArmsMesh->GetRelativeRotation().ToString()
+		);
+	}
+
+	void APlayerCharacter::EndFirstPersonGrenadePresentation()
+	{
+		isFirstPersonGrenadePresentationActive = false;
+		if (firstPersonGrenadeMesh)
+		{
+			firstPersonGrenadeMesh->SetVisibility(false, true);
+			firstPersonGrenadeMesh->SetHiddenInGame(true, true);
+		}
+		if (firstPersonArmsMesh)
+		{
+			firstPersonArmsMesh->SetRelativeLocation(firstPersonGrenadeBaseLocation);
+			firstPersonArmsMesh->SetRelativeRotation(firstPersonGrenadeBaseRotation);
+		}
 		ResetGrenadeState();
+		UpdateCameraPresentation();
 	}
 
 	void APlayerCharacter::ResetGrenadeState()
 	{
 		GetWorldTimerManager().ClearTimer(grenadeCastTimerHandle);
+		GetWorldTimerManager().ClearTimer(grenadeProjectileReleaseTimerHandle);
+		GetWorldTimerManager().ClearTimer(grenadePresentationEndTimerHandle);
 
 		isCastingGrenade = false;
 		isGrenadeReady = false;
@@ -709,6 +897,7 @@
 
 	void APlayerCharacter::HandleDeath(AActor* deadActor)
 	{
+		StopAttack();
 		isRunning = false;
 
 		GetCharacterMovement()->DisableMovement();
@@ -723,8 +912,6 @@
 
 		firstPersonCamera->SetActive(isFirstPerson);
 		thirdPersonCamera->SetActive(!isFirstPerson);
-		adsCamera->SetActive(false);
-
 
 		UpdateCameraPresentation();
 	}
@@ -734,11 +921,16 @@
 		GetMesh()->SetOwnerNoSee(isFirstPerson);
 		weaponMesh->SetOwnerNoSee(isFirstPerson);
 
-		firstPersonArmsMesh->SetVisibility(isFirstPerson, true);
-		firstPersonWeaponMesh->SetVisibility(isFirstPerson, true);
-		firstPersonArmsMesh->SetHiddenInGame(!isFirstPerson, true);
-		firstPersonWeaponMesh->SetHiddenInGame(!isFirstPerson, true);
-
+		const bool showWeaponArms = isFirstPerson && !isFirstPersonGrenadePresentationActive;
+		firstPersonArmsMesh->SetVisibility(showWeaponArms, true);
+		firstPersonWeaponMesh->SetVisibility(showWeaponArms, true);
+		if (firstPersonMagazineMesh)
+		{
+			firstPersonMagazineMesh->SetVisibility(showWeaponArms, true);
+			firstPersonMagazineMesh->SetHiddenInGame(!showWeaponArms, true);
+		}
+		firstPersonArmsMesh->SetHiddenInGame(!showWeaponArms, true);
+		firstPersonWeaponMesh->SetHiddenInGame(!showWeaponArms, true);
 		UE_LOG(
 			LogTemp,
 			Log,
@@ -752,6 +944,70 @@
 				? *firstPersonArmsMesh->GetAnimClass()->GetName()
 				: TEXT("None")
 		);
+	}
+
+	void APlayerCharacter::StartAttack()
+	{
+		isAttackHeld = true;
+		Attack();
+
+		if (isAutomaticFire && isAttackHeld)
+		{
+			GetWorldTimerManager().SetTimer(
+				automaticFireTimerHandle,
+				this,
+				&APlayerCharacter::AutomaticFireTick,
+				automaticFireInterval,
+				true,
+				automaticFireInterval
+			);
+		}
+	}
+
+	void APlayerCharacter::StopAttack()
+	{
+		isAttackHeld = false;
+		GetWorldTimerManager().ClearTimer(automaticFireTimerHandle);
+	}
+
+	void APlayerCharacter::ToggleFireMode()
+	{
+		isAutomaticFire = !isAutomaticFire;
+
+		if (!isAutomaticFire)
+		{
+			GetWorldTimerManager().ClearTimer(automaticFireTimerHandle);
+		}
+		else if (isAttackHeld)
+		{
+			GetWorldTimerManager().SetTimer(
+				automaticFireTimerHandle,
+				this,
+				&APlayerCharacter::AutomaticFireTick,
+				automaticFireInterval,
+				true,
+				automaticFireInterval
+			);
+		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Fire mode: %s"),
+			isAutomaticFire ? TEXT("Automatic") : TEXT("Semi-Automatic")
+		);
+	}
+
+	void APlayerCharacter::AutomaticFireTick()
+	{
+		if (!isAutomaticFire || !isAttackHeld || isGrenadeKeyHeld
+			|| !weaponComponent || !weaponComponent->CanAttack())
+		{
+			StopAttack();
+			return;
+		}
+
+		Attack();
 	}
 
 	void APlayerCharacter::Attack()
@@ -780,9 +1036,30 @@
 		}
 
 		PlayUpperBodyAnimation(fireAnimation);
-		UAnimSequenceBase* selectedFirstPersonFire = isAdsAiming
-			? firstPersonAimedFireAnimation
-			: firstPersonFireAnimation;
+		UAnimSequenceBase* selectedFirstPersonFire = firstPersonFireAnimation;
+		if (isAdsAiming)
+		{
+			adsFireRecoilAlpha = 1.0f;
+			selectedFirstPersonFire = useFirstPersonAimedFireAnimation
+				? firstPersonAimedFireAnimation
+				: nullptr;
+
+			if (lockAdsTransformDuringFire && hasCachedAdsArmsTransform)
+			{
+				isFirstPersonFireAnimationPlaying = true;
+				const float adsTransformLockDuration = selectedFirstPersonFire
+					? selectedFirstPersonFire->GetPlayLength()
+					: FMath::Max(automaticFireInterval * 1.25f, 0.12f);
+
+				GetWorldTimerManager().SetTimer(
+					firstPersonFireAnimationTimerHandle,
+					this,
+					&APlayerCharacter::ReleaseAdsFireTransformLock,
+					adsTransformLockDuration,
+					false
+				);
+			}
+		}
 		PlayFirstPersonUpperBodyAnimation(
 			selectedFirstPersonFire,
 			1.0f,
@@ -802,6 +1079,11 @@
 			viewDirection,
 			fireLocation
 		);
+	}
+
+	void APlayerCharacter::ReleaseAdsFireTransformLock()
+	{
+		isFirstPersonFireAnimationPlaying = false;
 	}
 
 	bool APlayerCharacter::GetAttackView(
@@ -872,19 +1154,20 @@
 	{
 		if (weaponComponent && weaponComponent->CanReload())
 		{
+			if (isAdsAiming)
+			{
+				ExitAim();
+			}
+
 			const bool wasMagazineEmpty = weaponComponent->currentAmmo <= 0;
 			UAnimSequenceBase* selectedFirstPersonReload = nullptr;
 			if (wasMagazineEmpty)
 			{
-				selectedFirstPersonReload = isAdsAiming
-					? firstPersonAimedEmptyReloadAnimation
-					: firstPersonEmptyReloadAnimation;
+				selectedFirstPersonReload = firstPersonEmptyReloadAnimation;
 			}
 			else
 			{
-				selectedFirstPersonReload = isAdsAiming
-					? firstPersonAimedReloadAnimation
-					: firstPersonReloadAnimation;
+				selectedFirstPersonReload = firstPersonReloadAnimation;
 			}
 
 			float reloadPlayRate = 1.0f;
@@ -905,8 +1188,67 @@
 				selectedFirstPersonReload,
 				firstPersonReloadPlayRate
 			);
+
+			if (isFirstPerson && firstPersonWeaponMesh && firstPersonMagazineMesh)
+			{
+				GetWorldTimerManager().ClearTimer(firstPersonMagazineDetachTimerHandle);
+				GetWorldTimerManager().ClearTimer(firstPersonMagazineAttachTimerHandle);
+				const float selectedDetachTimeRatio = wasMagazineEmpty
+					? emptyMagazineDetachTimeRatio
+					: magazineDetachTimeRatio;
+				const float selectedAttachTimeRatio = wasMagazineEmpty
+					? emptyMagazineAttachTimeRatio
+					: magazineAttachTimeRatio;
+
+				GetWorldTimerManager().SetTimer(
+					firstPersonMagazineDetachTimerHandle,
+					this,
+					&APlayerCharacter::DetachFirstPersonMagazineToHand,
+					weaponComponent->reloadTime * selectedDetachTimeRatio,
+					false
+				);
+				GetWorldTimerManager().SetTimer(
+					firstPersonMagazineAttachTimerHandle,
+					this,
+					&APlayerCharacter::AttachFirstPersonMagazineToWeapon,
+					weaponComponent->reloadTime * selectedAttachTimeRatio,
+					false
+				);
+			}
 			weaponComponent->Reload();
 		}
+	}
+
+	void APlayerCharacter::DetachFirstPersonMagazineToHand()
+	{
+		if (!isFirstPerson || !firstPersonMagazineMesh || !firstPersonArmsMesh
+			|| firstPersonArmsMesh->GetBoneIndex(magazineHandBoneName) == INDEX_NONE)
+		{
+			return;
+		}
+
+		firstPersonMagazineMesh->AttachToComponent(
+			firstPersonArmsMesh,
+			FAttachmentTransformRules::KeepWorldTransform,
+			magazineHandBoneName
+		);
+	}
+
+	void APlayerCharacter::AttachFirstPersonMagazineToWeapon()
+	{
+		if (!firstPersonMagazineMesh || !firstPersonWeaponMesh)
+		{
+			return;
+		}
+
+		firstPersonMagazineMesh->AttachToComponent(
+			firstPersonWeaponMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			magazineSocketName
+		);
+		firstPersonMagazineMesh->SetRelativeLocation(magazineLocationOffset);
+		firstPersonMagazineMesh->SetRelativeRotation(magazineRotationOffset);
+		firstPersonMagazineMesh->SetRelativeScale3D(FVector(magazineScale));
 	}
 
 	bool APlayerCharacter::PlayUpperBodyAnimation(UAnimSequenceBase* animation, float playRate)
@@ -1003,9 +1345,8 @@
 	void APlayerCharacter::EnterShoulderAim()
 	{
 		isAiming = true;
-		isAdsAiming = false;
+		SetAdsAiming(false);
 
-		adsCamera->SetActive(false);
 		firstPersonCamera->SetActive(isFirstPerson);
 		thirdPersonCamera->SetActive(!isFirstPerson);
 
@@ -1018,7 +1359,8 @@
 	void APlayerCharacter::EnterAdsAim()
 	{
 		isAiming = true;
-		isAdsAiming = true;
+		SetAdsAiming(true);
+		hasCachedAdsArmsTransform = false;
 
 		const bool canUseWeaponSight =
 			isFirstPerson
@@ -1027,8 +1369,6 @@
 
 		thirdPersonCamera->SetActive(!isFirstPerson);
 		firstPersonCamera->SetActive(isFirstPerson);
-		adsCamera->SetActive(false);
-
 		if (!canUseWeaponSight)
 		{
 			UE_LOG(
@@ -1048,13 +1388,26 @@
 	void APlayerCharacter::ExitAim()
 	{
 		isAiming = false;
-		isAdsAiming = false;
+		SetAdsAiming(false);
+		isFirstPersonFireAnimationPlaying = false;
+		hasCachedAdsArmsTransform = false;
+		GetWorldTimerManager().ClearTimer(firstPersonFireAnimationTimerHandle);
 
-		adsCamera->SetActive(false);
 		firstPersonCamera->SetActive(isFirstPerson);
 		thirdPersonCamera->SetActive(!isFirstPerson);
 
 		GetCharacterMovement()->MaxWalkSpeed = walkSpeed;
 
 		UE_LOG(LogTemp, Warning, TEXT("Aim End"));
+	}
+
+	void APlayerCharacter::SetAdsAiming(bool newIsAdsAiming)
+	{
+		if (isAdsAiming == newIsAdsAiming)
+		{
+			return;
+		}
+
+		isAdsAiming = newIsAdsAiming;
+		OnAdsAimingChanged.Broadcast(isAdsAiming);
 	}
