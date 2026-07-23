@@ -4,6 +4,56 @@
 #include "GameFramework/GameModeBase.h"
 #include "FPSGameMode.generated.h"
 
+UENUM(BlueprintType)
+enum class EGameDifficulty : uint8
+{
+	Easy UMETA(DisplayName = "Easy"),
+	Normal UMETA(DisplayName = "Normal"),
+	Hard UMETA(DisplayName = "Hard")
+};
+
+USTRUCT(BlueprintType)
+struct FEnemyDifficultySettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	float attackDamageMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	float attackAccuracyMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "0.0"))
+	float attackSpreadMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "1"))
+	int32 minBurstShots = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "1"))
+	int32 maxBurstShots = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "0.01"))
+	float burstShotInterval = 0.12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	FName aimBoneName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	float aimVerticalOffset = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "0.0"))
+	float initialDetectionDelay = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "0.0"))
+	float bodyDamageMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty", meta = (ClampMin = "0.0"))
+	float headDamageMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
+	TArray<FName> headBoneNames;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnScoreChanged,
 	int,
@@ -30,6 +80,20 @@ class TEAM10CH3PROJECT_API AFPSGameMode : public AGameModeBase
 	GENERATED_BODY()
 	
 public:
+	AFPSGameMode();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Difficulty")
+	EGameDifficulty difficulty = EGameDifficulty::Normal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Difficulty")
+	FEnemyDifficultySettings easyDifficultySettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Difficulty")
+	FEnemyDifficultySettings normalDifficultySettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Difficulty")
+	FEnemyDifficultySettings hardDifficultySettings;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode")
 	int targetKillCount = 5;
 
@@ -97,6 +161,12 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ResumeGame();
+
+	const FEnemyDifficultySettings& GetCurrentEnemyDifficultySettings() const;
+	bool IsHeadBone(FName boneName) const;
+
+	UFUNCTION(BlueprintPure, Category = "GameMode|Difficulty")
+	FText GetDifficultyDisplayName() const;
 
 	void UpdateGameTimer();
 };

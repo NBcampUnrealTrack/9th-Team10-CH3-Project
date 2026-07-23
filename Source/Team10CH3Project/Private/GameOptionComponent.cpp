@@ -1,7 +1,9 @@
 #include "GameOptionComponent.h"
 
+#include "FPSGameMode.h"
 #include "PlayerCharacter.h"
 
+#include "GameFramework/PlayerController.h"
 #include "Sound/SoundClass.h"
 
 UGameOptionComponent::UGameOptionComponent()
@@ -43,5 +45,52 @@ void UGameOptionComponent::SetFOV(float NewFOV)
 		{
 			Character->SetNormalFOV(NewFOV);
 		}
+	}
+}
+
+void UGameOptionComponent::SetDifficultyByIndex(int32 DifficultyIndex)
+{
+	AFPSGameMode* gameMode = GetWorld()
+		? GetWorld()->GetAuthGameMode<AFPSGameMode>()
+		: nullptr;
+	if (!gameMode)
+	{
+		return;
+	}
+
+	switch (DifficultyIndex)
+	{
+	case 0:
+		gameMode->difficulty = EGameDifficulty::Easy;
+		break;
+	case 2:
+		gameMode->difficulty = EGameDifficulty::Hard;
+		break;
+	case 1:
+	default:
+		gameMode->difficulty = EGameDifficulty::Normal;
+		break;
+	}
+}
+
+int32 UGameOptionComponent::GetDifficultyIndex() const
+{
+	const AFPSGameMode* gameMode = GetWorld()
+		? GetWorld()->GetAuthGameMode<AFPSGameMode>()
+		: nullptr;
+	if (!gameMode)
+	{
+		return 1;
+	}
+
+	switch (gameMode->difficulty)
+	{
+	case EGameDifficulty::Easy:
+		return 0;
+	case EGameDifficulty::Hard:
+		return 2;
+	case EGameDifficulty::Normal:
+	default:
+		return 1;
 	}
 }

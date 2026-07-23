@@ -32,4 +32,10 @@ public:
 	void SetSoundVolume(float NewVolume);
 	UFUNCTION(BlueprintCallable, Category = "Setting|FOV")
 	void SetFOV(float NewFOV);
+
+	UFUNCTION(BlueprintCallable, Category = "Setting|Gameplay")
+	void SetDifficultyByIndex(int32 DifficultyIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Setting|Gameplay")
+	int32 GetDifficultyIndex() const;
 };
