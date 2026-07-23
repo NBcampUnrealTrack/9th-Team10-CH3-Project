@@ -776,25 +776,20 @@
 		isFirstPersonGrenadeThrowPhase = true;
 		firstPersonGrenadePoseTime = 0.0f;
 
-		if (battleSystem)
-		{
-			FVector viewLocation;
-			FVector viewDirection;
-
-			GetAttackView(viewLocation, viewDirection);
-
-			FVector throwLocation =
-				GetMesh()->GetSocketLocation(TEXT("HandGrip_R"));
-
-			battleSystem->RequestSkillAttackByView(
-				this,
-				viewLocation,
-				viewDirection,
-				throwLocation
-			);
-
-			onSpecialSkillThrown.Broadcast();
-		}
+		GetWorldTimerManager().SetTimer(
+			grenadeProjectileReleaseTimerHandle,
+			this,
+			&APlayerCharacter::ReleaseGrenadeProjectile,
+			grenadeProjectileReleaseDelay,
+			false
+		);
+		GetWorldTimerManager().SetTimer(
+			grenadePresentationEndTimerHandle,
+			this,
+			&APlayerCharacter::EndFirstPersonGrenadePresentation,
+			FMath::Max(grenadePresentationEndDelay, grenadeProjectileReleaseDelay),
+			false
+		);
 
 	}
 
@@ -810,6 +805,7 @@
 		GetAttackView(viewLocation, viewDirection);
 		const FVector throwLocation = GetMesh()->GetSocketLocation(TEXT("HandGrip_R"));
 		battleSystem->RequestSkillAttackByView(this, viewLocation, viewDirection, throwLocation);
+		onSpecialSkillThrown.Broadcast();
 		if (firstPersonGrenadeMesh)
 		{
 			firstPersonGrenadeMesh->SetVisibility(false, true);
@@ -938,10 +934,17 @@
 		GetMesh()->SetOwnerNoSee(isFirstPerson);
 		weaponMesh->SetOwnerNoSee(isFirstPerson);
 
-		firstPersonArmsMesh->SetVisibility(isFirstPerson, true);
-		firstPersonWeaponMesh->SetVisibility(isFirstPerson, true);
-		firstPersonArmsMesh->SetHiddenInGame(!isFirstPerson, true);
-		firstPersonWeaponMesh->SetHiddenInGame(!isFirstPerson, true);
+		const bool showWeaponArms =
+			isFirstPerson && !isFirstPersonGrenadePresentationActive;
+		firstPersonArmsMesh->SetVisibility(showWeaponArms, true);
+		firstPersonWeaponMesh->SetVisibility(showWeaponArms, true);
+		firstPersonArmsMesh->SetHiddenInGame(!showWeaponArms, true);
+		firstPersonWeaponMesh->SetHiddenInGame(!showWeaponArms, true);
+		if (firstPersonMagazineMesh)
+		{
+			firstPersonMagazineMesh->SetVisibility(showWeaponArms, true);
+			firstPersonMagazineMesh->SetHiddenInGame(!showWeaponArms, true);
+		}
 
 	}
 
