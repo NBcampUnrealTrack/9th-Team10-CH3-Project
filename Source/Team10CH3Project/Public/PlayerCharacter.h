@@ -313,6 +313,36 @@ protected:
 
 	void AutomaticFireTick();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilPitchPerShot = 0.75f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilMaxPitch = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilYawPerShot = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilMaxYaw = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilKickInterpSpeed = 35.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))
+	float recoilRecoverySpeed = 10.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Recoil")
+	float currentRecoilPitch = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Recoil")
+	float currentRecoilYaw = 0.0f;
+
+	float targetRecoilPitch = 0.0f;
+	float targetRecoilYaw = 0.0f;
+
+	void ApplyRecoil();
+	void UpdateRecoil(float deltaTime);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|FirstPerson", meta = (ClampMin = "0.0"))
 	float headCameraInterpSpeed = 20.0f;
 

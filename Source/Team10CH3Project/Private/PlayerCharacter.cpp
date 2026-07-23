@@ -302,6 +302,8 @@
 	{
 		Super::Tick(DeltaTime);
 
+		UpdateRecoil(DeltaTime);
+
 		if (Controller)
 		{
 			const FRotator aimDelta =
@@ -926,6 +928,11 @@
 			gameMode->GameOver();
 		}
 
+		if (APC_PlayerController* playerController = Cast<APC_PlayerController>(GetController()))
+		{
+			playerController->ShowGameOverWidget();
+		}
+
 	}
 
 	//z키 누를시 카메라 시점 변경
@@ -1028,6 +1035,59 @@
 		Attack();
 	}
 
+	void APlayerCharacter::ApplyRecoil()
+	{
+		targetRecoilPitch = FMath::Clamp(
+			FMath::Max(currentRecoilPitch, targetRecoilPitch) + recoilPitchPerShot,
+			0.0f,
+			recoilMaxPitch
+		);
+		const float recoilYawBase = FMath::Abs(targetRecoilYaw) > FMath::Abs(currentRecoilYaw)
+			? targetRecoilYaw
+			: currentRecoilYaw;
+		targetRecoilYaw = FMath::Clamp(
+			recoilYawBase + FMath::FRandRange(-recoilYawPerShot, recoilYawPerShot),
+			-recoilMaxYaw,
+			recoilMaxYaw
+		);
+	}
+
+	void APlayerCharacter::UpdateRecoil(float deltaTime)
+	{
+		if (!isAttackHeld)
+		{
+			targetRecoilPitch = 0.0f;
+			targetRecoilYaw = 0.0f;
+		}
+
+		if (FMath::IsNearlyEqual(currentRecoilPitch, targetRecoilPitch, KINDA_SMALL_NUMBER)
+			&& FMath::IsNearlyEqual(currentRecoilYaw, targetRecoilYaw, KINDA_SMALL_NUMBER))
+		{
+			return;
+		}
+
+		const float previousRecoilPitch = currentRecoilPitch;
+		const float previousRecoilYaw = currentRecoilYaw;
+		const float interpolationSpeed = isAttackHeld
+			? recoilKickInterpSpeed
+			: recoilRecoverySpeed;
+		currentRecoilPitch = FMath::FInterpTo(
+			currentRecoilPitch,
+			targetRecoilPitch,
+			deltaTime,
+			interpolationSpeed
+		);
+		currentRecoilYaw = FMath::FInterpTo(
+			currentRecoilYaw,
+			targetRecoilYaw,
+			deltaTime,
+			interpolationSpeed
+		);
+
+		AddControllerPitchInput(-(currentRecoilPitch - previousRecoilPitch));
+		AddControllerYawInput(currentRecoilYaw - previousRecoilYaw);
+	}
+
 	void APlayerCharacter::Attack()
 	{
 		if (isGrenadeKeyHeld)
@@ -1108,6 +1168,8 @@
 			viewDirection,
 			fireLocation
 		);
+
+		ApplyRecoil();
 	}
 
 	void APlayerCharacter::ReleaseAdsFireTransformLock()

@@ -54,7 +54,7 @@ public:
 	float basicAttackDamage = 25.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
-	float basicAttackRange = 3000.0f;
+	float basicAttackRange = 10000.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
 	float headShotMultiplier = 2.0f;
