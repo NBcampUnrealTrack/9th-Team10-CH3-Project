@@ -361,7 +361,6 @@ void APC_PlayerController::OnStartButtonClicked()
 
 void APC_PlayerController::OnEndButtonClicked()
 {
-
 	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
 	if (gameMode)
 	{
@@ -378,6 +377,18 @@ void APC_PlayerController::OnEndButtonClicked()
 void APC_PlayerController::OnOptionButtonClicked()
 {
 	OptionMenu();
+}
+
+void APC_PlayerController::OnRestartButtonClicked()
+{
+	endWidget->RemoveFromParent();
+	
+	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		gameMode->ClearGame();
+	}
+	
+	startWidget->AddToViewport(10);
 }
 
 void APC_PlayerController::OptionMenu()
