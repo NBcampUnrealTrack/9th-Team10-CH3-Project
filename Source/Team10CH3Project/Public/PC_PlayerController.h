@@ -21,6 +21,9 @@ public:
 	APC_PlayerController();
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowGameOverWidget();
 	
 	//Option Component
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Option")
@@ -99,6 +102,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnGoToHomeButtonClicked();
+
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;
