@@ -1,6 +1,7 @@
 #include "BattleSystem.h"
 #include "HealthComponent.h"
 #include "GrenadeProjectile.h"
+#include "DrawDebugHelpers.h"
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UObject/ConstructorHelpers.h"
@@ -172,34 +173,67 @@ void ABattleSystem::AttackAroundLocation(
 	TArray<AActor*> ignoreActors;
 	ignoreActors.Add(attackerActor);
 
-	TArray<FHitResult> hitResults;
-	TArray<AActor*> damagedActors;
+	TArray<AActor*> overlapActors;
 
-	bool isHit = UKismetSystemLibrary::SphereTraceMulti(
+	TArray<TEnumAsByte<EObjectTypeQuery>> objectTypes;
+	objectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+	objectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	objectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
+
+	UKismetSystemLibrary::SphereOverlapActors(
 		GetWorld(),
 		attackLocation,
-		attackLocation,
 		attackRange,
-		UEngineTypes::ConvertToTraceType(ECC_Visibility),
-		false,
+		objectTypes,
+		nullptr,
 		ignoreActors,
-		EDrawDebugTrace::None,
-		hitResults,
-		true
+		overlapActors
 	);
 
-	if (isHit)
-	{
-		for (FHitResult hitResult : hitResults)
-		{
-			AActor* damageableActor = ResolveDamageableActor(hitResult.GetActor());
+	DrawDebugSphere(
+		GetWorld(),
+		attackLocation,
+		attackRange,
+		32,
+		FColor::Red,
+		false,
+		2.0f
+	);
 
-			if (damageableActor && !damagedActors.Contains(damageableActor))
-			{
-				damagedActors.Add(damageableActor);
-				Attack(damageableActor, damageAmount, attackerActor, hitResult.ImpactPoint);
-			}
+	for (AActor* overlapActor : overlapActors)
+	{
+		AActor* damageableActor = ResolveDamageableActor(overlapActor);
+
+		if (damageableActor == nullptr)
+		{
+			continue;
 		}
+
+		float distance = FVector::Dist(
+			attackLocation,
+			damageableActor->GetActorLocation()
+		);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Grenade Overlap: %s / Distance: %f / Range: %f"),
+			*GetNameSafe(damageableActor),
+			distance,
+			attackRange
+		);
+
+		if (distance > attackRange)
+		{
+			continue;
+		}
+
+		if (damageableActor == attackerActor)
+		{
+			continue;
+		}
+
+		Attack(damageableActor, damageAmount, attackerActor, attackLocation);
 	}
 }
 
@@ -269,6 +303,16 @@ void ABattleSystem::RequestBasicAttackByView(
 
 		bool isHeadShot = IsHeadShot(hitResult);
 		float finalDamage = basicAttackDamage;
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("BasicAttack Hit / Actor: %s / Component: %s / Bone: %s / IsHeadShot: %s"),
+			*GetNameSafe(damageableActor),
+			*GetNameSafe(hitResult.GetComponent()),
+			*hitResult.BoneName.ToString(),
+			isHeadShot ? TEXT("true") : TEXT("false")
+		);
 
 		if (isHeadShot)
 		{
@@ -378,12 +422,32 @@ void ABattleSystem::RequestSkillAttackByView(
 
 bool ABattleSystem::IsHeadShot(const FHitResult& hitResult) const
 {
+	if (!hitResult.BoneName.IsNone() && hitResult.BoneName == headShotTag)
+	{
+		return true;
+	}
+
 	UPrimitiveComponent* hitComponent = hitResult.GetComponent();
 
-	if (hitComponent == nullptr)
+	if (hitComponent && hitComponent->ComponentHasTag(headShotTag))
+	{
+		return true;
+	}
+
+	AActor* hitActor = hitResult.GetActor();
+
+	if (hitActor == nullptr)
 	{
 		return false;
 	}
 
-	return hitComponent->ComponentHasTag(headShotTag);
+	FVector actorOrigin;
+	FVector actorBoxExtent;
+	hitActor->GetActorBounds(false, actorOrigin, actorBoxExtent);
+
+	float minZ = actorOrigin.Z - actorBoxExtent.Z;
+	float maxZ = actorOrigin.Z + actorBoxExtent.Z;
+	float headShotZ = FMath::Lerp(minZ, maxZ, headShotHeightRatio);
+
+	return hitResult.ImpactPoint.Z >= headShotZ;
 }
