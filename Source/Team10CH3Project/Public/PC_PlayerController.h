@@ -13,6 +13,12 @@ class UUserWidget;
 class APlayerCharacter;
 class UGameOptionComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnStartMenu,
+	bool,
+	bIsStartMenu
+	);
+
 UCLASS()
 class TEAM10CH3PROJECT_API APC_PlayerController : public APlayerController
 {
@@ -91,11 +97,23 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* optionAction = nullptr;
 	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	bool bIsStartMenu = false; 
+	
+	UPROPERTY(BlueprintAssignable, Category = "UI")
+	FOnStartMenu OnGameStartMenu;
+	
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnStartButtonClicked();
 
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnEndButtonClicked();
+	
+	UFUNCTION(BlueprintCallable, Category = "StartUI")
+	void OnOptionButtonClicked();
+	
+	UFUNCTION(BlueprintCallable, Category = "StartUI")
+	void FOnStartMenu(bool bNewIsStartMenu);
 
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnReturnButtonClicked();
