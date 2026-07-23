@@ -14,15 +14,12 @@
 class UHealthComponent;
 class UWeaponComponent;
 class ABattleSystem;
+class APC_PlayerController;
 class USceneComponent;
 class UAnimSequenceBase;
 class UStaticMeshComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FOnAdsAimingChanged,
-	bool,
-	bIsAdsAiming
-);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSpecialSkillThrown);
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -256,6 +253,13 @@ protected:
 	ABattleSystem* battleSystem = nullptr;
 
 	UFUNCTION()
+	void HandleDamaged(
+		float damageAmount,
+		AActor* attackerActor,
+		FVector hitLocation,
+		FVector attackDirection);
+
+	UFUNCTION()
 	void HandleDeath(AActor* deadActor);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -425,6 +429,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Grenade")
 	bool shouldThrowAfterCast = false;
 
+	UPROPERTY()
+	APC_PlayerController* PC;
+	
 	FTimerHandle grenadeCastTimerHandle;
 	FTimerHandle grenadeProjectileReleaseTimerHandle;
 	FTimerHandle grenadePresentationEndTimerHandle;
@@ -453,5 +460,12 @@ protected:
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
+	
+	//Joonhyeong
+	UFUNCTION(BlueprintCallable, Category = "FOV")
+	void SetNormalFOV(float NewFOV);
+	UFUNCTION(BlueprintCallable, Category = "FOV")
+	float GetNormalFOV();
+	UPROPERTY(BlueprintAssignable, Category = "Skill")
+	FOnSpecialSkillThrown onSpecialSkillThrown;
 };

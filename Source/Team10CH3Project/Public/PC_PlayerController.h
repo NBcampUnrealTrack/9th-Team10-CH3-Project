@@ -11,16 +11,20 @@ class UInputMappingContext;
 class UInputAction;
 class UUserWidget;
 class APlayerCharacter;
+class UGameOptionComponent;
 
 UCLASS()
 class TEAM10CH3PROJECT_API APC_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
-
 public:
+	APC_PlayerController();
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
-
+	
+	//Option Component
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Option")
+	UGameOptionComponent* gameOptionComponent = nullptr;
 protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -83,7 +87,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* optionAction = nullptr;
-
+	
 	UFUNCTION(BlueprintCallable, Category = "StartUI")
 	void OnStartButtonClicked();
 
@@ -93,6 +97,8 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnReturnButtonClicked();
 
+	UFUNCTION(BlueprintCallable, Category = "Option")
+	void OnGoToHomeButtonClicked();
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;

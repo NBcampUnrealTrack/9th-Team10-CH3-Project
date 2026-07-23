@@ -42,8 +42,6 @@ void UWeaponComponent::Attack(AActor* attackerActor, const FVector& viewLocation
 
 	currentAmmo--;
 
-	UE_LOG(LogTemp, Warning, TEXT("Attack! Ammo: %d / %d"), currentAmmo, reserveAmmo);
-
 	if (battleSystem)
 	{
 		battleSystem->RequestBasicAttackByView(attackerActor, viewLocation, viewDirection, fireLocation);
@@ -58,8 +56,6 @@ void UWeaponComponent::Reload()
 	}
 
 	isReloading = true;
-
-	UE_LOG(LogTemp, Warning, TEXT("Reload Start"));
 
 	GetWorld()->GetTimerManager().SetTimer(
 		reloadTimerHandle,
@@ -80,5 +76,4 @@ void UWeaponComponent::FinishReload()
 
 	isReloading = false;
 
-	UE_LOG(LogTemp, Warning, TEXT("Reload Finish! Ammo: %d / %d"), currentAmmo, reserveAmmo);
 }

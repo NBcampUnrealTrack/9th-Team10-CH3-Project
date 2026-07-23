@@ -5,6 +5,35 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+	AActor* ResolveDamageableActor(AActor* hitActor)
+	{
+		TSet<AActor*> visitedActors;
+		AActor* currentActor = hitActor;
+
+		while (IsValid(currentActor) && !visitedActors.Contains(currentActor))
+		{
+			visitedActors.Add(currentActor);
+
+			if (currentActor->FindComponentByClass<UHealthComponent>())
+			{
+				return currentActor;
+			}
+
+			AActor* nextActor = currentActor->GetOwner();
+			if (!IsValid(nextActor))
+			{
+				nextActor = currentActor->GetAttachParentActor();
+			}
+
+			currentActor = nextActor;
+		}
+
+		return nullptr;
+	}
+}
+
 ABattleSystem::ABattleSystem()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -26,13 +55,13 @@ void ABattleSystem::BeginPlay()
 
 void ABattleSystem::Attack(AActor* targetActor, float damageAmount, AActor* attackerActor, FVector hitLocation)
 {
-	if (targetActor == nullptr)
+	AActor* damageableActor = ResolveDamageableActor(targetActor);
+	if (!damageableActor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("targetActor is null"));
 		return;
 	}
 
-	UHealthComponent* healthComponent = targetActor->FindComponentByClass<UHealthComponent>();
+	UHealthComponent* healthComponent = damageableActor->FindComponentByClass<UHealthComponent>();
 
 	if (healthComponent)
 	{
@@ -44,7 +73,6 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 {
 	if (shooterActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("shooterActor is null"));
 		return;
 	}
 
@@ -67,9 +95,8 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 
 	if (isHit)
 	{
-		AActor* hitActor = hitResult.GetActor();
-
-		if (hitActor == nullptr || hitActor->FindComponentByClass<UHealthComponent>() == nullptr)
+		AActor* damageableActor = ResolveDamageableActor(hitResult.GetActor());
+		if (!damageableActor)
 		{
 			return;
 		}
@@ -82,8 +109,8 @@ void ABattleSystem::FireLineTrace(AActor* shooterActor, float attackDamageAmount
 			finalDamage *= headShotMultiplier;
 		}
 
-		Attack(hitActor, finalDamage, shooterActor, hitResult.ImpactPoint);	
-		onBasicAttackHit.Broadcast(hitActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
+		Attack(damageableActor, finalDamage, shooterActor, hitResult.ImpactPoint);
+		onBasicAttackHit.Broadcast(damageableActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
 	}
 }
 
@@ -91,7 +118,6 @@ void ABattleSystem::AttackAround(AActor* attackerActor, float damageAmount, floa
 {
 	if (attackerActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
 		return;
 	}
 
@@ -120,12 +146,12 @@ void ABattleSystem::AttackAround(AActor* attackerActor, float damageAmount, floa
 	{
 		for (FHitResult hitResult : hitResults)
 		{
-			AActor* hitActor = hitResult.GetActor();
+			AActor* damageableActor = ResolveDamageableActor(hitResult.GetActor());
 
-			if (hitActor && !damagedActors.Contains(hitActor) && hitActor->FindComponentByClass<UHealthComponent>())
+			if (damageableActor && !damagedActors.Contains(damageableActor))
 			{
-				damagedActors.Add(hitActor);
-				Attack(hitActor, damageAmount, attackerActor, hitResult.ImpactPoint);
+				damagedActors.Add(damageableActor);
+				Attack(damageableActor, damageAmount, attackerActor, hitResult.ImpactPoint);
 			}
 		}
 	}
@@ -140,7 +166,6 @@ void ABattleSystem::AttackAroundLocation(
 {
 	if (attackerActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
 		return;
 	}
 
@@ -167,12 +192,12 @@ void ABattleSystem::AttackAroundLocation(
 	{
 		for (FHitResult hitResult : hitResults)
 		{
-			AActor* hitActor = hitResult.GetActor();
+			AActor* damageableActor = ResolveDamageableActor(hitResult.GetActor());
 
-			if (hitActor && !damagedActors.Contains(hitActor) && hitActor->FindComponentByClass<UHealthComponent>())
+			if (damageableActor && !damagedActors.Contains(damageableActor))
 			{
-				damagedActors.Add(hitActor);
-				Attack(hitActor, damageAmount, attackerActor, hitResult.ImpactPoint);
+				damagedActors.Add(damageableActor);
+				Attack(damageableActor, damageAmount, attackerActor, hitResult.ImpactPoint);
 			}
 		}
 	}
@@ -192,7 +217,6 @@ void ABattleSystem::RequestBasicAttackByView(
 {
 	if (attackerActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
 		return;
 	}
 
@@ -237,9 +261,8 @@ void ABattleSystem::RequestBasicAttackByView(
 
 	if (isHit)
 	{
-		AActor* hitActor = hitResult.GetActor();
-
-		if (hitActor == nullptr || hitActor->FindComponentByClass<UHealthComponent>() == nullptr)
+		AActor* damageableActor = ResolveDamageableActor(hitResult.GetActor());
+		if (!damageableActor)
 		{
 			return;
 		}
@@ -252,8 +275,8 @@ void ABattleSystem::RequestBasicAttackByView(
 			finalDamage *= headShotMultiplier;
 		}
 
-		Attack(hitActor, finalDamage, attackerActor, hitResult.ImpactPoint);
-		onBasicAttackHit.Broadcast(hitActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
+		Attack(damageableActor, finalDamage, attackerActor, hitResult.ImpactPoint);
+		onBasicAttackHit.Broadcast(damageableActor, finalDamage, isHeadShot, hitResult.ImpactPoint);
 	}
 }
 
@@ -284,14 +307,12 @@ void ABattleSystem::RequestSkillAttack(AActor* attackerActor)
 {
 	if (!CanUseSkillAttack())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Skill attack failed: cooldown"));
 		onSkillAttackFailed.Broadcast();
 		return;
 	}
 
 	if (attackerActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
 		return;
 	}
 
@@ -311,20 +332,17 @@ void ABattleSystem::RequestSkillAttackByView(
 {
 	if (!CanUseSkillAttack())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Skill attack failed: cooldown"));
 		onSkillAttackFailed.Broadcast();
 		return;
 	}
 
 	if (attackerActor == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("attackerActor is null"));
 		return;
 	}
 
 	if (grenadeProjectileClass == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("grenadeProjectileClass is null"));
 		return;
 	}
 

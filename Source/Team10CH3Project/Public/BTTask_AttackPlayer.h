@@ -36,8 +36,4 @@ protected:
 	// 진행 중(InProgress) 중 하나를 반환값(EBTNodeResult::Type)으로 알려줘야 한다.
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& ownerComp, uint8* nodeMemory) override;
 
-	// GetInstanceMemorySize는 "이 태스크가 적 개체마다 따로 기억해야 하는 데이터가 몇 바이트인지"를
-	// 언리얼에게 알려주는 함수다. 우리는 "마지막 공격 시각"을 개체별로 따로 저장해야 해서 이게 필요하다
-	// (자세한 이유는 .cpp 파일의 주석에서 설명).
-	virtual uint16 GetInstanceMemorySize() const override;
 };

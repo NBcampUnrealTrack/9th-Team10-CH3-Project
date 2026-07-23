@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PC_PlayerController.h"
-
 #include "PlayerCharacter.h"
 #include "FPSGameMode.h"
+#include "GameOptionComponent.h"
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -12,6 +12,12 @@
 #include "InputCoreTypes.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Kismet/KismetSystemLibrary.h"
+
+APC_PlayerController::APC_PlayerController()
+{
+	gameOptionComponent = CreateDefaultSubobject<UGameOptionComponent>(TEXT("gameOptionComponent"));
+}
 
 void APC_PlayerController::BeginPlay()
 {
@@ -74,11 +80,6 @@ void APC_PlayerController::SetupInputComponent()
 
 	if (!enhancedInputComponent)
 	{
-		UE_LOG(
-			LogTemp,
-			Error,
-			TEXT("PC_PlayerController: EnhancedInputComponent를 찾을 수 없습니다.")
-		);
 		return;
 	}
 
@@ -324,6 +325,18 @@ void APC_PlayerController::OnStartButtonClicked()
 
 void APC_PlayerController::OnEndButtonClicked()
 {
+
+	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+	if (gameMode)
+	{
+		gameMode->GameOver();
+	}
+	UKismetSystemLibrary::QuitGame(
+		GetWorld(),
+		this,
+		EQuitPreference::Quit,
+		false
+		);
 }
 
 void APC_PlayerController::OptionMenu()
@@ -370,5 +383,21 @@ void APC_PlayerController::OnReturnButtonClicked()
 		{
 			gameMode->ResumeGame();
 		}
+	}
+}
+
+void APC_PlayerController::OnGoToHomeButtonClicked()
+{
+	if (optionWidget)
+	{
+		optionWidget->RemoveFromParent();
+	}
+	if (playerHudWidget)
+	{
+		playerHudWidget->RemoveFromParent();
+	}
+	if (startWidget)
+	{
+		startWidget->AddToViewport();
 	}
 }

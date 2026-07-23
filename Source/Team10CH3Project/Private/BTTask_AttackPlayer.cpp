@@ -12,20 +12,36 @@
 
 // 전투 로직 담당 팀원이 만든 체력 컴포넌트. TakeDamage() 함수를 호출하려면 실제 정의가 필요하다.
 #include "HealthComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
 
-// 이 태스크 노드(UBTTask_AttackPlayer) 객체 자체는 Behavior Tree 에셋 하나당 딱 하나만 만들어지고,
-// 그 BT를 실행하는 모든 적들이 "같은 노드 객체"를 공유해서 쓴다. 만약 "마지막 공격 시각"을
-// 이 클래스의 평범한 멤버 변수로 저장하면, 적이 여러 마리일 때 서로의 쿨타임 기록이 뒤섞여버린다
-// (한 마리가 공격하면 다른 마리들도 전부 방금 공격한 것처럼 기록되는 문제).
-// 그래서 언리얼 Behavior Tree는 "NodeMemory"라는, 각 적(각 Behavior Tree 인스턴스)마다
-// 따로 할당되는 별도의 메모리 공간을 제공한다. 이 구조체가 바로 그 메모리에 저장할 데이터의 형태다.
-struct FBTAttackPlayerMemory
+namespace
 {
-	// lastAttackTime은 이 적이 마지막으로 공격에 성공한 게임 시간(초)이다.
-	// -1000.f로 초기화해두는 이유는, 게임 시작 직후 첫 공격이 쿨타임 때문에 막히지 않게 하기 위함이다
-	// (현재 시간 - (-1000)은 항상 attackCooldown보다 커지므로 첫 공격은 항상 허용된다).
-	float lastAttackTime = -1000.f;
-};
+	UHealthComponent* FindHealthComponentFromHit(AActor* hitActor)
+	{
+		TSet<AActor*> visitedActors;
+		AActor* currentActor = hitActor;
+
+		while (IsValid(currentActor) && !visitedActors.Contains(currentActor))
+		{
+			visitedActors.Add(currentActor);
+
+			if (UHealthComponent* health = currentActor->FindComponentByClass<UHealthComponent>())
+			{
+				return health;
+			}
+
+			AActor* nextActor = currentActor->GetOwner();
+			if (!IsValid(nextActor))
+			{
+				nextActor = currentActor->GetAttachParentActor();
+			}
+
+			currentActor = nextActor;
+		}
+
+		return nullptr;
+	}
+}
 
 // 생성자 정의. 이 태스크 노드가 만들어질 때 한 번 실행된다.
 UBTTask_AttackPlayer::UBTTask_AttackPlayer()
@@ -43,6 +59,10 @@ UBTTask_AttackPlayer::UBTTask_AttackPlayer()
 // Succeeded면 "이 가지의 목표를 달성했다"로 처리되고, Failed면 "이 가지는 실패했으니 다른 자식을 시도하라"로 처리된다.
 EBTNodeResult::Type UBTTask_AttackPlayer::ExecuteTask(UBehaviorTreeComponent& ownerComp, uint8* nodeMemory)
 {
+	const FName resolvedTargetActorKey = targetActorKey.SelectedKeyName.IsNone()
+		? FName(TEXT("targetActor"))
+		: targetActorKey.SelectedKeyName;
+
 	// 이 Behavior Tree가 쓰는 블랙보드 컴포넌트를 가져온다.
 	UBlackboardComponent* blackboard = ownerComp.GetBlackboardComponent();
 	// 블랙보드가 없으면(설정 오류 등) 더 진행할 수 없으므로 실패 처리.
@@ -63,7 +83,7 @@ EBTNodeResult::Type UBTTask_AttackPlayer::ExecuteTask(UBehaviorTreeComponent& ow
 
 	// 블랙보드에 저장된 "공격 대상"을 가져온다. GetValueAsObject는 UObject* 타입을 반환하므로,
 	// 우리가 원하는 AActor* 타입으로 다시 Cast한다.
-	AActor* target = Cast<AActor>(blackboard->GetValueAsObject(targetActorKey.SelectedKeyName));
+	AActor* target = Cast<AActor>(blackboard->GetValueAsObject(resolvedTargetActorKey));
 	// target이 없다는 건 아직 플레이어가 탐지되지 않았다는 뜻이므로 실패 처리.
 	if (!target)
 	{
@@ -80,45 +100,81 @@ EBTNodeResult::Type UBTTask_AttackPlayer::ExecuteTask(UBehaviorTreeComponent& ow
 		return EBTNodeResult::Failed;
 	}
 
-	// nodeMemory는 uint8*(단순한 바이트 배열의 시작 주소) 형태로 넘어온다.
-	// reinterpret_cast는 "이 메모리를 다른 타입으로 취급해서 읽어라"라고 컴파일러에게 지시하는,
-	// 상당히 강한 형변환이다. 여기서는 이 메모리를 우리가 정의한 FBTAttackPlayerMemory 구조체로
-	// 해석해서 쓰겠다는 뜻이다. GetInstanceMemorySize()에서 이 구조체 크기만큼의 공간을
-	// 미리 요청해뒀기 때문에 안전하게 쓸 수 있다.
-	FBTAttackPlayerMemory* memory = reinterpret_cast<FBTAttackPlayerMemory*>(nodeMemory);
-	// GetWorld()는 현재 게임 월드에 대한 접근을 제공하고, GetTimeSeconds()는 "게임이 시작된 뒤로
-	// 지난 시간(초)"을 반환한다.
-	const float currentTime = enemy->GetWorld()->GetTimeSeconds();
-	// 마지막 공격 시각으로부터 얼마나 시간이 지났는지 계산해서, 아직 쿨타임(attackCooldown)이
-	// 다 지나지 않았으면 공격할 수 없다.
-	if (currentTime - memory->lastAttackTime < enemy->attackCooldown)
-	{
-		// 쿨타임 중이라 실패 반환. 다음 BT 틱에 다시 이 태스크가 시도되며 조건을 재확인한다.
-		return EBTNodeResult::Failed;
-	}
+	FVector traceStart;
+	FRotator enemyEyeRotation;
+	enemy->GetActorEyesViewPoint(traceStart, enemyEyeRotation);
 
-	// FindComponentByClass<T>()는 대상 액터에 붙어있는 컴포넌트 중, T 타입(또는 T의 자식 타입)인
-	// 컴포넌트를 찾아서 반환한다. 없으면 nullptr을 반환한다.
-	UHealthComponent* targetHealth = target->FindComponentByClass<UHealthComponent>();
-	// 체력 컴포넌트를 실제로 찾은 경우에만 데미지를 적용한다(플레이어가 아닌, 체력이 없는 액터를
-	// 잘못 공격 대상으로 잡는 경우를 방지).
-	if (targetHealth)
-	{
-		// TakeDamage(데미지량, 공격자, 피격 위치)를 호출해서 실제로 체력을 깎는다.
-		// enemy를 공격자로 넘겨주면, 나중에 히트 인디케이터 쪽에서 "누가 공격했는지" 알 수 있다.
-		targetHealth->TakeDamage(enemy->attackDamage, enemy, target->GetActorLocation());
-	}
+	FVector targetPoint;
+	FRotator targetEyeRotation;
+	target->GetActorEyesViewPoint(targetPoint, targetEyeRotation);
+	// 적의 정면 방향(GetActorForwardVector)이 아니라, "적 위치 -> 대상 위치" 벡터를 직접 계산해서 쓴다.
+	// 이렇게 해야 적의 몸이 어느 방향을 보고 있든 상관없이 항상 대상을 정확히 조준한 방향이 나온다.
+	const FVector idealDirection = (targetPoint - traceStart).GetSafeNormal();
 
-	// 방금 공격을 실행했으니, 다음 쿨타임 계산의 기준이 될 마지막 공격 시각을 지금으로 갱신한다.
-	memory->lastAttackTime = currentTime;
-	// 공격을 성공적으로 실행했으므로 Succeeded를 반환한다.
+	// FMath::Lerp(A, B, 비율)은 비율이 0이면 A, 1이면 B, 그 사이는 둘을 선형으로 섞은 값을 반환한다.
+	// attackAccuracy가 1(완벽한 명중률)이면 spreadDegrees가 0이 되고, 0(부정확)이면
+	// attackMaxSpreadDegrees만큼 조준 각도가 흔들릴 수 있게 된다.
+	const float spreadDegrees = FMath::Lerp(enemy->attackMaxSpreadDegrees, 0.f, enemy->attackAccuracy);
+	const float spreadRadians = FMath::DegreesToRadians(spreadDegrees);
+
+	// VRandCone(방향, 원뿔 반각)은 주어진 방향을 중심으로 한 원뿔 범위 안에서 무작위 방향 하나를 뽑아준다.
+	// spreadRadians가 0이면 항상 idealDirection 그대로 나가고, 커질수록 더 크게 빗나갈 수 있다.
+	const FVector fireDirection = FMath::VRandCone(idealDirection, spreadRadians);
+	// 조준 방향으로 attackRange만큼 뻗은 지점을 트레이스 종료점으로 삼는다.
+	const FVector traceEnd = traceStart + fireDirection * enemy->attackRange;
+
+	// 트레이스 결과(맞은 지점, 맞은 액터 등)를 담을 구조체.
+	FHitResult hitResult;
+	// 트레이스 세부 옵션을 담는 구조체.
+	TArray<AActor*> actorsToIgnore;
+	// 자기 자신은 트레이스 대상에서 제외한다. 안 그러면 자기 캡슐에 바로 막혀버린다.
+	actorsToIgnore.Add(enemy);
+
+	// 플레이어 쪽 BattleSystem::FireLineTrace와 동일한 채널(ECC_Visibility)을 써서,
+	// 벽 같은 장애물에 똑같이 가로막히도록 한다. 이게 없으면 벽 뒤의 대상도 맞출 수 있게 된다.
+	const bool isHit = UKismetSystemLibrary::LineTraceSingle(
+		enemy,
+		traceStart,
+		traceEnd,
+		UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false,
+		actorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		hitResult,
+		true,
+		FLinearColor::Red,
+		FLinearColor::Green,
+		enemy->attackTraceDrawDuration);
+	UHealthComponent* hitHealth = isHit
+		? FindHealthComponentFromHit(hitResult.GetActor())
+		: nullptr;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("AI attack trace executed: Enemy=%s Target=%s Hit=%s HitActor=%s HasHealth=%s"),
+		*GetNameSafe(enemy),
+		*GetNameSafe(target),
+		isHit ? TEXT("true") : TEXT("false"),
+		*GetNameSafe(hitResult.GetActor()),
+		hitHealth ? TEXT("true") : TEXT("false"));
+
+	// 트레이스가 뭔가에 맞았을 때만 데미지 여부를 판단한다. (벽에 막혔든, 조준이 빗나가서 다른 걸 맞췄든,
+	// 원래 목표를 정확히 맞췄든 일단 hitResult에 정보가 담긴다.)
+	if (isHit)
+	{
+		// 맞은 액터에 체력 컴포넌트가 있는지 확인한다. 벽처럼 체력 컴포넌트가 없는 걸 맞았으면
+		// hitHealth가 nullptr이 되어 데미지가 적용되지 않는다 (벽 관통 방지).
+		if (hitHealth)
+		{
+			// TakeDamage(데미지량, 공격자, 피격 위치)를 호출해서 실제로 체력을 깎는다.
+			// 대상의 GetActorLocation() 대신, 실제로 트레이스가 맞은 지점(hitResult.ImpactPoint)을 넘긴다.
+			hitHealth->TakeDamage(enemy->attackDamage, enemy, hitResult.ImpactPoint);
+		}
+	}
+	// 트레이스가 아무것도 못 맞췄으면(오차 때문에 완전히 빗나갔으면) 데미지 없이 그냥 넘어간다.
+
+	// 명중했든 빗나갔든 "공격 행동 자체"는 정상적으로 실행했으므로 Succeeded를 반환한다.
+	// (명중 여부까지 실패로 처리하면 빗나갈 때마다 Move To로 폴백해서 계속 대상에게 다가가버린다.)
 	return EBTNodeResult::Succeeded;
-}
-
-// 이 태스크가 개체별로 필요로 하는 메모리 크기를 언리얼에게 알려주는 함수.
-// sizeof(FBTAttackPlayerMemory)는 이 구조체가 차지하는 바이트 수를 컴파일 시점에 계산해주는 연산자다.
-// 언리얼은 이 값을 보고, 이 Behavior Tree를 실행하는 적 하나당 그만큼의 메모리를 따로 마련해준다.
-uint16 UBTTask_AttackPlayer::GetInstanceMemorySize() const
-{
-	return sizeof(FBTAttackPlayerMemory);
 }
