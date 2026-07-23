@@ -985,6 +985,7 @@
 	void APlayerCharacter::ToggleFireMode()
 	{
 		isAutomaticFire = !isAutomaticFire;
+		OnFireModeChanged.Broadcast(isAutomaticFire);
 
 		if (!isAutomaticFire)
 		{
@@ -1008,6 +1009,11 @@
 			TEXT("Fire mode: %s"),
 			isAutomaticFire ? TEXT("Automatic") : TEXT("Semi-Automatic")
 		);
+	}
+
+	bool APlayerCharacter::IsAutomaticFireMode() const
+	{
+		return isAutomaticFire;
 	}
 
 	void APlayerCharacter::AutomaticFireTick()

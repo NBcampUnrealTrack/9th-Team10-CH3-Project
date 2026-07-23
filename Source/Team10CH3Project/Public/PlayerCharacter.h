@@ -25,6 +25,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	bool,
 	bIsAdsAiming
 );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnFireModeChanged,
+	bool,
+	bIsAutomaticFire
+);
 
 UCLASS()
 class TEAM10CH3PROJECT_API APlayerCharacter : public ACharacter
@@ -46,6 +51,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Aim")
 	FOnAdsAimingChanged OnAdsAimingChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Fire Mode")
+	FOnFireModeChanged OnFireModeChanged;
 	
 
 	void Move(const FInputActionValue& value);
@@ -77,6 +85,10 @@ public:
 	void StartAttack();
 	void StopAttack();
 	void ToggleFireMode();
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Fire Mode")
+	bool IsAutomaticFireMode() const;
+
 	void Attack();
 	void Reload();
 
