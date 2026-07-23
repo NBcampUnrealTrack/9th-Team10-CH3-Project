@@ -21,6 +21,7 @@
 	#include "WeaponComponent.h"
 	#include "BattleSystem.h"
 	#include "PC_PlayerController.h"
+	#include "FPSGameMode.h"
 	#include "GameOptionComponent.h"
 	#include "Engine/World.h"
 
@@ -131,6 +132,8 @@
 
 		healthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 		weaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("WeaponComponent"));
 
 		battleSystemClass = ABattleSystem::StaticClass();
@@ -144,6 +147,8 @@
 		// AI hitscan attacks use the Visibility channel. Keep the final
 		// Blueprint instance damageable even if its Pawn profile ignores it.
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 		firstPersonCameraRoot->AttachToComponent(
 			GetCapsuleComponent(),
@@ -915,6 +920,11 @@
 		isRunning = false;
 
 		GetCharacterMovement()->DisableMovement();
+
+		if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+		{
+			gameMode->GameOver();
+		}
 
 	}
 
