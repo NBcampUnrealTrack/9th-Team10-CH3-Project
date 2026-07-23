@@ -62,6 +62,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
 	FName headShotTag = TEXT("Head");
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|BasicAttack")
+	float headShotHeightRatio = 0.75f;
+
 	UPROPERTY(BlueprintAssignable, Category = "Battle|BasicAttack")
 	FOnBasicAttackHit onBasicAttackHit;
 
