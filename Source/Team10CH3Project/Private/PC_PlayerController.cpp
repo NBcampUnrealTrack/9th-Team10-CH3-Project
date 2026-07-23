@@ -339,8 +339,14 @@ void APC_PlayerController::OnEndButtonClicked()
 		);
 }
 
+void APC_PlayerController::OnOptionButtonClicked()
+{
+	OptionMenu();
+}
+
 void APC_PlayerController::OptionMenu()
 {
+	
 	if (!optionWidget)
 	{
 		return;
@@ -358,9 +364,19 @@ void APC_PlayerController::OptionMenu()
 		}
 		return;
 	}
+	
+	if (startWidget && startWidget->IsInViewport())
+	{
+		FOnStartMenu(true);
+		optionWidget->AddToViewport(10);
+		bShowMouseCursor = true;
+		SetInputMode(FInputModeGameAndUI());
+	}
 
 	if (playerHudWidget && playerHudWidget->IsInViewport())
 	{
+		FOnStartMenu(false);
+		OnGameStartMenu.Broadcast(bIsStartMenu);
 		optionWidget->AddToViewport(10);
 		bShowMouseCursor = true;
 		SetInputMode(FInputModeGameAndUI());
@@ -400,4 +416,14 @@ void APC_PlayerController::OnGoToHomeButtonClicked()
 	{
 		startWidget->AddToViewport();
 	}
+}
+
+void APC_PlayerController::FOnStartMenu(bool bNewIsStartMenu)
+{
+    bIsStartMenu = bNewIsStartMenu;
+
+    if (OnGameStartMenu.IsBound())
+    {
+        OnGameStartMenu.Broadcast(bIsStartMenu);
+    }
 }
