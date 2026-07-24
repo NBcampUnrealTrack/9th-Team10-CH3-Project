@@ -54,6 +54,20 @@ struct FEnemyDifficultySettings
 	TArray<FName> headBoneNames;
 };
 
+UENUM(BlueprintType)
+enum class EGameEndReason : uint8
+{
+	GameCleared = 0,
+	PlayerDied = 1,
+	TimeOver = 2
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnGameEnded,
+	int32,
+	endReason
+);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnScoreChanged,
 	int,
@@ -145,6 +159,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
 	FOnGameResumed onGameResumed;
 
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnGameEnded onGameEnded;
+	
 	UFUNCTION(BlueprintCallable)
 	void StartGame();
 

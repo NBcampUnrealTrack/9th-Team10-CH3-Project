@@ -968,6 +968,7 @@ void APlayerCharacter::HandleDeath(AActor* deadActor)
 
 	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
 	{
+		gameMode->onGameEnded.Broadcast(StaticCast<int32>(EGameEndReason::PlayerDied));
 		gameMode->GameOver();
 	}
 
