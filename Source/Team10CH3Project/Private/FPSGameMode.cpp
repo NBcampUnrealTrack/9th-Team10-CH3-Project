@@ -3,6 +3,7 @@
 #include "HealthComponent.h"
 
 #include "EngineUtils.h"
+#include "Kismet/GameplayStatics.h"
 
 AFPSGameMode::AFPSGameMode()
 {
@@ -184,12 +185,18 @@ void AFPSGameMode::ClearGame()
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 	GetWorldTimerManager().ClearTimer(targetCountRefreshTimerHandle);
 
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Game cleared after %d/%d kills."),
+		currentKillCount,
+		targetKillCount);
 	onGameCleared.Broadcast();
 }
 
 void AFPSGameMode::GameOver()
 {
-	if (isGameOver || isGameCleared)
+	if (!isGameStarted || isGameOver || isGameCleared)
 	{
 		return;
 	}
@@ -201,6 +208,13 @@ void AFPSGameMode::GameOver()
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 	GetWorldTimerManager().ClearTimer(targetCountRefreshTimerHandle);
 
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Game over with %.1f seconds remaining after %d/%d kills."),
+		remainingTime,
+		currentKillCount,
+		targetKillCount);
 	onGameOver.Broadcast();
 }
 
@@ -213,6 +227,7 @@ void AFPSGameMode::PauseGame()
 
 	isGamePaused = true;
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
+	UGameplayStatics::SetGamePaused(this, true);
 	onGamePaused.Broadcast();
 }
 
@@ -231,6 +246,7 @@ void AFPSGameMode::ResumeGame()
 		1.0f,
 		true
 	);
+	UGameplayStatics::SetGamePaused(this, false);
 	onGameResumed.Broadcast();
 }
 

@@ -295,6 +295,12 @@ void APlayerCharacter::BeginPlay()
 	PlayFirstPersonUpperBodyAnimation(firstPersonEquipAnimation);
 
 	PC = Cast<APC_PlayerController>(GetController());
+	if (battleSystem && PC)
+	{
+		battleSystem->onBasicAttackHit.AddUniqueDynamic(
+			PC,
+			&APC_PlayerController::ShowDamageNumber);
+	}
 }
 
 // Called every frame
@@ -970,12 +976,6 @@ void APlayerCharacter::HandleDeath(AActor* deadActor)
 	{
 		gameMode->GameOver();
 	}
-
-	if (APC_PlayerController* playerController = Cast<APC_PlayerController>(GetController()))
-	{
-		playerController->ShowGameOverWidget();
-	}
-
 }
 
 //z키 누를시 카메라 시점 변경

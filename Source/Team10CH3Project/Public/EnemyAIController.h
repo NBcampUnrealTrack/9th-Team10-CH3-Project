@@ -13,4 +13,10 @@ public:
 	UBehaviorTree* behaviorTreeAsset;
 protected:
 	virtual void OnPossess(APawn* inPawn) override;
+
+	UFUNCTION()
+	void StartBehaviorTree();
+
+private:
+	bool hasStartedBehaviorTree = false;
 };

@@ -12,12 +12,38 @@
 #include "InputCoreTypes.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/Widget.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	constexpr int32 GameClearedWidgetState = 0;
+	constexpr int32 PlayerDiedWidgetState = 1;
+	constexpr int32 TimeOverWidgetState = 2;
+	const FName GameOverWidgetName(TEXT("GAMEOVER"));
+	const FName MissionCompleteWidgetName(TEXT("MISSIONCOMPLETE"));
+	const FName TimeOverWidgetName(TEXT("TIMEOVER"));
+	const FName DamageOverlayWidgetName(TEXT("DamageOverlay"));
+	const FName ShowDamageEventName(TEXT("ShowDamageEvent"));
+	const FName HeadSocketName(TEXT("head"));
+	const FVector2D DamageWidgetScreenOffset(0.0f, -20.0f);
+}
 
 APC_PlayerController::APC_PlayerController()
 {
 	gameOptionComponent = CreateDefaultSubobject<UGameOptionComponent>(TEXT("gameOptionComponent"));
+
+	static ConstructorHelpers::FClassFinder<UUserWidget> damageWidgetFinder(
+		TEXT("/Game/JH_OCK/UI/WBP_Damage"));
+	if (damageWidgetFinder.Succeeded())
+	{
+		damageWidgetClass = damageWidgetFinder.Class;
+	}
 }
 
 void APC_PlayerController::BeginPlay()
@@ -46,6 +72,14 @@ void APC_PlayerController::BeginPlay()
 	if (playerHudClass)
 	{
 		playerHudWidget = CreateWidget<UUserWidget>(this, playerHudClass);
+		if (playerHudWidget)
+		{
+			if (UWidget* damageOverlay =
+				playerHudWidget->GetWidgetFromName(DamageOverlayWidgetName))
+			{
+				damageOverlay->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
 	}
 	if (startWidgetClass)
 	{
@@ -63,7 +97,7 @@ void APC_PlayerController::BeginPlay()
 	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
 	{
 		gameMode->onGameOver.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
-		gameMode->onGameCleared.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
+		gameMode->onGameCleared.AddDynamic(this, &APC_PlayerController::ShowGameClearedWidget);
 	}
 
 	if (startWidget)
@@ -71,6 +105,7 @@ void APC_PlayerController::BeginPlay()
 		startWidget->AddToViewport();
 		bShowMouseCursor = true;
 		SetInputMode(FInputModeUIOnly());
+		UGameplayStatics::SetGamePaused(this, true);
 	}
 	else if (playerHudWidget)
 	{
@@ -80,10 +115,99 @@ void APC_PlayerController::BeginPlay()
 
 void APC_PlayerController::ShowGameOverWidget()
 {
+	int32 endState = PlayerDiedWidgetState;
+	if (const AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+	{
+		if (gameMode->isGameCleared)
+		{
+			endState = GameClearedWidgetState;
+		}
+		else if (gameMode->remainingTime <= 0.0f)
+		{
+			endState = TimeOverWidgetState;
+		}
+	}
+
+	ShowEndWidget(endState);
+}
+
+void APC_PlayerController::ShowGameClearedWidget()
+{
+	ShowEndWidget(GameClearedWidgetState);
+}
+
+void APC_PlayerController::ShowDamageNumber(
+	AActor* targetActor,
+	float finalDamage,
+	bool isHeadShot,
+	FVector hitLocation)
+{
+	if (!IsLocalController() || !IsValid(targetActor) || !damageWidgetClass)
+	{
+		return;
+	}
+
+	FVector damageWorldLocation = hitLocation;
+	if (const ACharacter* targetCharacter = Cast<ACharacter>(targetActor))
+	{
+		if (const USkeletalMeshComponent* targetMesh = targetCharacter->GetMesh();
+			targetMesh && targetMesh->DoesSocketExist(HeadSocketName))
+		{
+			damageWorldLocation = targetMesh->GetSocketLocation(HeadSocketName);
+		}
+		else
+		{
+			FVector boundsOrigin;
+			FVector boundsExtent;
+			targetActor->GetActorBounds(false, boundsOrigin, boundsExtent);
+			damageWorldLocation =
+				FVector(boundsOrigin.X, boundsOrigin.Y, boundsOrigin.Z + boundsExtent.Z);
+		}
+	}
+
+	FVector2D widgetPosition;
+	if (!UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition(
+		this,
+		damageWorldLocation,
+		widgetPosition,
+		true))
+	{
+		return;
+	}
+
+	UUserWidget* damageWidget = CreateWidget<UUserWidget>(this, damageWidgetClass);
+	if (!damageWidget)
+	{
+		return;
+	}
+
+	damageWidget->AddToViewport(20);
+	damageWidget->SetAlignmentInViewport(FVector2D(0.5f, 1.0f));
+	damageWidget->SetPositionInViewport(
+		widgetPosition + DamageWidgetScreenOffset,
+		false);
+
+	if (UFunction* showDamageFunction =
+		damageWidget->FindFunction(ShowDamageEventName))
+	{
+		struct FShowDamageParameters
+		{
+			double Damage;
+		};
+
+		FShowDamageParameters parameters{static_cast<double>(finalDamage)};
+		damageWidget->ProcessEvent(showDamageFunction, &parameters);
+	}
+}
+
+void APC_PlayerController::ShowEndWidget(int32 endState)
+{
 	if (!IsLocalController())
 	{
 		return;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("Showing end widget with state %d."), endState);
 
 	if (playerHudWidget)
 	{
@@ -105,8 +229,28 @@ void APC_PlayerController::ShowGameOverWidget()
 		endWidget->AddToViewport();
 	}
 
+	if (endWidget)
+	{
+		const auto setEndStateVisibility =
+			[this, endState](const FName widgetName, const int32 widgetState)
+		{
+			if (UWidget* stateWidget = endWidget->GetWidgetFromName(widgetName))
+			{
+				stateWidget->SetVisibility(
+					endState == widgetState
+						? ESlateVisibility::Visible
+						: ESlateVisibility::Hidden);
+			}
+		};
+
+		setEndStateVisibility(GameOverWidgetName, PlayerDiedWidgetState);
+		setEndStateVisibility(MissionCompleteWidgetName, GameClearedWidgetState);
+		setEndStateVisibility(TimeOverWidgetName, TimeOverWidgetState);
+	}
+
 	bShowMouseCursor = true;
 	SetInputMode(FInputModeUIOnly());
+	UGameplayStatics::SetGamePaused(this, true);
 }
 
 void APC_PlayerController::SetupInputComponent()
@@ -189,6 +333,7 @@ void APC_PlayerController::SetupInputComponent()
 
 	if (optionAction)
 	{
+		optionAction->bTriggerWhenPaused = true;
 		enhancedInputComponent->BindAction(optionAction, ETriggerEvent::Started, this, &APC_PlayerController::OptionMenu);
 	}
 }
@@ -347,10 +492,14 @@ void APC_PlayerController::OnStartButtonClicked()
 		startWidget->RemoveFromParent();
 	}
 
+	FOnStartMenu(false);
+
 	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		gameMode->StartGame();
 	}
+
+	UGameplayStatics::SetGamePaused(this, false);
 
 	if (playerHudWidget && !playerHudWidget->IsInViewport())
 	{
@@ -383,8 +532,7 @@ void APC_PlayerController::OnOptionButtonClicked()
 
 void APC_PlayerController::OnRestartButtonClicked()
 {
-	const FString currentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	UGameplayStatics::OpenLevel(this, FName(*currentLevelName));
+	ReloadCurrentLevel();
 }
 
 void APC_PlayerController::OptionMenu()
@@ -399,11 +547,19 @@ void APC_PlayerController::OptionMenu()
 	if (optionWidget->IsInViewport())
 	{
 		optionWidget->RemoveFromParent();
-		bShowMouseCursor = false;
-		SetInputMode(FInputModeGameOnly());
-		if (gameMode)
+		if (bIsStartMenu)
 		{
-			gameMode->ResumeGame();
+			bShowMouseCursor = true;
+			SetInputMode(FInputModeUIOnly());
+		}
+		else
+		{
+			bShowMouseCursor = false;
+			SetInputMode(FInputModeGameOnly());
+			if (gameMode)
+			{
+				gameMode->ResumeGame();
+			}
 		}
 		return;
 	}
@@ -424,7 +580,6 @@ void APC_PlayerController::OptionMenu()
 		}
 
 		FOnStartMenu(false);
-		OnGameStartMenu.Broadcast(bIsStartMenu);
 		optionWidget->AddToViewport(10);
 		bShowMouseCursor = true;
 		SetInputMode(FInputModeGameAndUI());
@@ -440,30 +595,27 @@ void APC_PlayerController::OnReturnButtonClicked()
 	if (optionWidget && optionWidget->IsInViewport())
 	{
 		optionWidget->RemoveFromParent();
-		bShowMouseCursor = false;
-		SetInputMode(FInputModeGameOnly());
-
-		if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+		if (bIsStartMenu)
 		{
-			gameMode->ResumeGame();
+			bShowMouseCursor = true;
+			SetInputMode(FInputModeUIOnly());
+		}
+		else
+		{
+			bShowMouseCursor = false;
+			SetInputMode(FInputModeGameOnly());
+
+			if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+			{
+				gameMode->ResumeGame();
+			}
 		}
 	}
 }
 
 void APC_PlayerController::OnGoToHomeButtonClicked()
 {
-	if (optionWidget)
-	{
-		optionWidget->RemoveFromParent();
-	}
-	if (playerHudWidget)
-	{
-		playerHudWidget->RemoveFromParent();
-	}
-	if (startWidget)
-	{
-		startWidget->AddToViewport();
-	}
+	ReloadCurrentLevel();
 }
 
 void APC_PlayerController::FOnStartMenu(bool bNewIsStartMenu)
@@ -474,4 +626,12 @@ void APC_PlayerController::FOnStartMenu(bool bNewIsStartMenu)
 	{
 		OnGameStartMenu.Broadcast(bIsStartMenu);
 	}
+}
+
+void APC_PlayerController::ReloadCurrentLevel()
+{
+	UGameplayStatics::SetGamePaused(this, false);
+
+	const FString currentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	UGameplayStatics::OpenLevel(this, FName(*currentLevelName));
 }

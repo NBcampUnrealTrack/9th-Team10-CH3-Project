@@ -30,6 +30,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowGameOverWidget();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowGameClearedWidget();
+
+	UFUNCTION()
+	void ShowDamageNumber(
+		AActor* targetActor,
+		float finalDamage,
+		bool isHeadShot,
+		FVector hitLocation);
 	
 	//Option Component
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Option")
@@ -75,6 +85,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	UUserWidget* playerHudWidget = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UUserWidget> damageWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	TSubclassOf<UUserWidget> startWidgetClass;
@@ -129,6 +142,8 @@ private:
 	APlayerCharacter* playerCharacter = nullptr;
 
 	APlayerCharacter* GetPlayerCharacter();
+	void ReloadCurrentLevel();
+	void ShowEndWidget(int32 endState);
 
 	void Move(const FInputActionValue& value);
 	void Look(const FInputActionValue& value);
