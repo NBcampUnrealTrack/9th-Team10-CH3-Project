@@ -117,10 +117,13 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnReturnButtonClicked();
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Option")
 	void OnGoToHomeButtonClicked();
 
+	UFUNCTION(BlueprintCallable, Category = "EndUI")
+	void OnRestartButtonClicked();
+	
 private:
 	UPROPERTY()
 	APlayerCharacter* playerCharacter = nullptr;
