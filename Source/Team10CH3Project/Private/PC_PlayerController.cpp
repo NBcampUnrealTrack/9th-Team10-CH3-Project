@@ -13,6 +13,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 APC_PlayerController::APC_PlayerController()
 {
@@ -383,12 +384,14 @@ void APC_PlayerController::OnRestartButtonClicked()
 {
 	endWidget->RemoveFromParent();
 	
-	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+	/*if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		gameMode->ClearGame();
 	}
+		
+	startWidget->AddToViewport(10);*/
 	
-	startWidget->AddToViewport(10);
+	UGameplayStatics::OpenLevel(GetWorld(), FName(*GetWorld()->GetMapName()), false);
 }
 
 void APC_PlayerController::OptionMenu()
