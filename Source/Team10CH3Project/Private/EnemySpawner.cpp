@@ -79,11 +79,21 @@ AEnemyCharacter* AEnemySpawner::SpawnEnemy()
 			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
 		const FRotator spawnRotation(0.0f, FMath::FRandRange(0.0f, 360.0f), 0.0f);
-		return GetWorld()->SpawnActor<AEnemyCharacter>(
+		AEnemyCharacter* spawnedEnemy = GetWorld()->SpawnActor<AEnemyCharacter>(
 			enemyClass,
 			navigationLocation.Location,
 			spawnRotation,
 			spawnParameters);
+
+		if (spawnedEnemy)
+		{
+			if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+			{
+				gameMode->RegisterSpawnedEnemy();
+			}
+		}
+
+		return spawnedEnemy;
 	}
 
 	return nullptr;

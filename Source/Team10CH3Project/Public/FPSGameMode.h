@@ -94,8 +94,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Difficulty")
 	FEnemyDifficultySettings hardDifficultySettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode")
-	int targetKillCount = 5;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode")
+	int targetKillCount = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode")
 	int currentKillCount = 0;
@@ -122,6 +122,7 @@ public:
 	float remainingTime = 0.0f;
 
 	FTimerHandle gameTimerHandle;
+	FTimerHandle targetCountRefreshTimerHandle;
 
 	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
 	FOnScoreChanged onScoreChanged;
@@ -150,6 +151,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddKillScore(int addScore);
 
+	void RegisterSpawnedEnemy();
+
 	UFUNCTION(BlueprintCallable)
 	void ClearGame();
 
@@ -169,4 +172,5 @@ public:
 	FText GetDifficultyDisplayName() const;
 
 	void UpdateGameTimer();
+	void RefreshTargetKillCount();
 };

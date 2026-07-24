@@ -12,6 +12,7 @@
 #include "InputCoreTypes.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 APC_PlayerController::APC_PlayerController()
@@ -62,6 +63,7 @@ void APC_PlayerController::BeginPlay()
 	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
 	{
 		gameMode->onGameOver.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
+		gameMode->onGameCleared.AddDynamic(this, &APC_PlayerController::ShowGameOverWidget);
 	}
 
 	if (startWidget)
@@ -345,6 +347,11 @@ void APC_PlayerController::OnStartButtonClicked()
 		startWidget->RemoveFromParent();
 	}
 
+	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		gameMode->StartGame();
+	}
+
 	if (playerHudWidget && !playerHudWidget->IsInViewport())
 	{
 		playerHudWidget->AddToViewport();
@@ -352,11 +359,6 @@ void APC_PlayerController::OnStartButtonClicked()
 
 	bShowMouseCursor = false;
 	SetInputMode(FInputModeGameOnly());
-
-	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
-	{
-		gameMode->StartGame();
-	}
 }
 
 void APC_PlayerController::OnEndButtonClicked()
@@ -381,14 +383,8 @@ void APC_PlayerController::OnOptionButtonClicked()
 
 void APC_PlayerController::OnRestartButtonClicked()
 {
-	endWidget->RemoveFromParent();
-	
-	if (AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode()))
-	{
-		gameMode->ClearGame();
-	}
-	
-	startWidget->AddToViewport(10);
+	const FString currentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	UGameplayStatics::OpenLevel(this, FName(*currentLevelName));
 }
 
 void APC_PlayerController::OptionMenu()
@@ -422,6 +418,11 @@ void APC_PlayerController::OptionMenu()
 
 	if (playerHudWidget && playerHudWidget->IsInViewport())
 	{
+		if (APlayerCharacter* character = GetPlayerCharacter())
+		{
+			character->StopAttack();
+		}
+
 		FOnStartMenu(false);
 		OnGameStartMenu.Broadcast(bIsStartMenu);
 		optionWidget->AddToViewport(10);

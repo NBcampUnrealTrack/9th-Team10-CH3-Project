@@ -1,4 +1,8 @@
 #include "FPSGameMode.h"
+#include "EnemyCharacter.h"
+#include "HealthComponent.h"
+
+#include "EngineUtils.h"
 
 AFPSGameMode::AFPSGameMode()
 {
@@ -90,11 +94,22 @@ void AFPSGameMode::StartGame()
 
 	currentKillCount = 0;
 	score = 0;
+	targetKillCount = 0;
 
 	remainingTime = timeLimit;
+	onGameStarted.Broadcast();
+
+	RefreshTargetKillCount();
+	GetWorldTimerManager().SetTimer(
+		targetCountRefreshTimerHandle,
+		this,
+		&AFPSGameMode::RefreshTargetKillCount,
+		0.1f,
+		false
+	);
+
 	onScoreChanged.Broadcast(score, currentKillCount);
 	onTimeChanged.Broadcast(remainingTime);
-	onGameStarted.Broadcast();
 
 	GetWorldTimerManager().SetTimer(
 		gameTimerHandle,
@@ -124,6 +139,37 @@ void AFPSGameMode::AddKillScore(int addScore)
 	}
 }
 
+void AFPSGameMode::RefreshTargetKillCount()
+{
+	if (!isGameStarted || isGameOver || isGameCleared)
+	{
+		return;
+	}
+
+	targetKillCount = 0;
+	for (TActorIterator<AEnemyCharacter> enemyIterator(GetWorld()); enemyIterator; ++enemyIterator)
+	{
+		AEnemyCharacter* enemy = *enemyIterator;
+		if (IsValid(enemy) && (!enemy->healthComponent || !enemy->healthComponent->isDead))
+		{
+			++targetKillCount;
+		}
+	}
+
+	onScoreChanged.Broadcast(score, currentKillCount);
+}
+
+void AFPSGameMode::RegisterSpawnedEnemy()
+{
+	if (!isGameStarted || isGameOver || isGameCleared)
+	{
+		return;
+	}
+
+	++targetKillCount;
+	onScoreChanged.Broadcast(score, currentKillCount);
+}
+
 void AFPSGameMode::ClearGame()
 {
 	if (isGameOver || isGameCleared)
@@ -136,6 +182,7 @@ void AFPSGameMode::ClearGame()
 	isGamePaused = false;
 
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
+	GetWorldTimerManager().ClearTimer(targetCountRefreshTimerHandle);
 
 	onGameCleared.Broadcast();
 }
@@ -152,6 +199,7 @@ void AFPSGameMode::GameOver()
 	isGamePaused = false;
 
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
+	GetWorldTimerManager().ClearTimer(targetCountRefreshTimerHandle);
 
 	onGameOver.Broadcast();
 }

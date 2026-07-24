@@ -336,6 +336,7 @@ protected:
 
 	FTimerHandle automaticFireTimerHandle;
 
+	bool CanAttackInCurrentGame() const;
 	void AutomaticFireTick();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "0.0"))

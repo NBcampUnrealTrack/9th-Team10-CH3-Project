@@ -1010,6 +1010,12 @@ void APlayerCharacter::UpdateCameraPresentation()
 
 void APlayerCharacter::StartAttack()
 {
+	if (!CanAttackInCurrentGame())
+	{
+		StopAttack();
+		return;
+	}
+
 	isAttackHeld = true;
 	Attack();
 
@@ -1068,7 +1074,7 @@ bool APlayerCharacter::IsAutomaticFireMode() const
 
 void APlayerCharacter::AutomaticFireTick()
 {
-	if (!isAutomaticFire || !isAttackHeld || isGrenadeKeyHeld
+	if (!CanAttackInCurrentGame() || !isAutomaticFire || !isAttackHeld || isGrenadeKeyHeld
 		|| !weaponComponent || !weaponComponent->CanAttack())
 	{
 		StopAttack();
@@ -1076,6 +1082,19 @@ void APlayerCharacter::AutomaticFireTick()
 	}
 
 	Attack();
+}
+
+bool APlayerCharacter::CanAttackInCurrentGame() const
+{
+	const AFPSGameMode* gameMode = GetWorld()
+		? GetWorld()->GetAuthGameMode<AFPSGameMode>()
+		: nullptr;
+
+	return gameMode
+		&& gameMode->isGameStarted
+		&& !gameMode->isGameOver
+		&& !gameMode->isGameCleared
+		&& !gameMode->isGamePaused;
 }
 
 void APlayerCharacter::ApplyRecoil()
@@ -1133,6 +1152,11 @@ void APlayerCharacter::UpdateRecoil(float deltaTime)
 
 void APlayerCharacter::Attack()
 {
+	if (!CanAttackInCurrentGame())
+	{
+		return;
+	}
+
 	if (isGrenadeKeyHeld)
 	{
 		return;
