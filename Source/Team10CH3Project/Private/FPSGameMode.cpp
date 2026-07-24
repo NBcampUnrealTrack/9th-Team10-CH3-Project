@@ -138,6 +138,8 @@ void AFPSGameMode::ClearGame()
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 
 	onGameCleared.Broadcast();
+	onGameEnded.Broadcast(StaticCast<int32>(EGameEndReason::GameCleared));
+	GameOver();
 }
 
 void AFPSGameMode::GameOver()
@@ -154,6 +156,12 @@ void AFPSGameMode::GameOver()
 	GetWorldTimerManager().ClearTimer(gameTimerHandle);
 
 	onGameOver.Broadcast();
+	
+	if (remainingTime > 0.0f)
+	{
+		onGameEnded.Broadcast(StaticCast<int32>(EGameEndReason::PlayerDied));
+	}
+	
 }
 
 void AFPSGameMode::PauseGame()
@@ -200,9 +208,17 @@ void AFPSGameMode::UpdateGameTimer()
 	{
 		remainingTime = 0.0f;
 		onTimeChanged.Broadcast(remainingTime);
+		onGameEnded.Broadcast(StaticCast<int32>(EGameEndReason::TimeOver));
 		GameOver();
 		return;
 	}
 
 	onTimeChanged.Broadcast(remainingTime);
+}
+
+void AFPSGameMode::AddTargetKillCount(int32 newTargetKillCount)
+{
+	targetKillCount += newTargetKillCount;
+	
+	onTargetKillCountChanged.Broadcast(targetKillCount);
 }

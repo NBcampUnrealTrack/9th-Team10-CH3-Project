@@ -54,6 +54,21 @@ struct FEnemyDifficultySettings
 	TArray<FName> headBoneNames;
 };
 
+//For Restart
+UENUM(BlueprintType)
+enum class EGameEndReason : uint8
+{
+	GameCleared = 0,
+	PlayerDied = 1,
+	TimeOver = 2
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnGameEnded,
+	int32,
+	endReason
+	);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnScoreChanged,
 	int,
@@ -66,6 +81,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnTimeChanged,
 	float,
 	remainingTime
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnTargetKillCountChanged, 
+	int32, 
+	newTargetCount
 );
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameCleared);
@@ -95,7 +116,7 @@ public:
 	FEnemyDifficultySettings hardDifficultySettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode")
-	int targetKillCount = 5;
+	int targetKillCount = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode")
 	int currentKillCount = 0;
@@ -116,7 +137,7 @@ public:
 	bool isGamePaused = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameMode|Time")
-	float timeLimit = 60.0f;
+	float timeLimit = 180.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GameMode|Time")
 	float remainingTime = 0.0f;
@@ -144,6 +165,16 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
 	FOnGameResumed onGameResumed;
 
+	//For Restart
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnGameEnded onGameEnded;
+	
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Event")
+	FOnTargetKillCountChanged onTargetKillCountChanged;
+	
+	UFUNCTION(BlueprintCallable)
+	void AddTargetKillCount(int32 newTargetKillCount);
+	
 	UFUNCTION(BlueprintCallable)
 	void StartGame();
 
@@ -167,6 +198,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "GameMode|Difficulty")
 	FText GetDifficultyDisplayName() const;
-
+	
 	void UpdateGameTimer();
 };

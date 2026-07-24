@@ -36,9 +36,20 @@ void AEnemySpawner::SpawnInitialEnemies()
 	}
 
 	hasSpawnedInitialEnemies = true;
+	
+	int32 successfullySpawnedCount = 0;
+	
 	for (int32 index = 0; index < initialSpawnCount; ++index)
 	{
-		SpawnEnemy();
+		if (AEnemyCharacter* spawnedEnemy = SpawnEnemy())
+		{
+			successfullySpawnedCount++;
+		}
+	}
+	
+	if (AFPSGameMode* gameMode = GetWorld()->GetAuthGameMode<AFPSGameMode>())
+	{
+		gameMode->AddTargetKillCount(successfullySpawnedCount);
 	}
 }
 
